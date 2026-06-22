@@ -8,6 +8,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#222;min-height:100vh}
@@ -118,6 +119,13 @@ tr.row-urgent:hover td{background:#feebc8}
 #toast{position:fixed;bottom:24px;right:24px;background:#2d3748;color:#fff;padding:12px 20px;border-radius:8px;font-size:13px;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none}
 #toast.show{opacity:1}
 
+/* ===== ACCESS REQUEST ===== */
+.btn-request{background:#805ad5;color:#fff;padding:5px 12px;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;transition:background .2s;white-space:nowrap}
+.btn-request:hover{background:#6b46c1}
+.req-badge{font-size:12px;padding:4px 10px;border-radius:10px;font-weight:600}
+.req-pending{background:#fefcbf;color:#744210}
+.req-rejected{background:#fed7d7;color:#9b2c2c}
+
 /* ===== LOADING ===== */
 #loading{position:fixed;inset:0;background:rgba(255,255,255,.8);display:flex;align-items:center;justify-content:center;z-index:500;font-size:16px;color:#2d6a9f;font-weight:600}
 .spinner{width:36px;height:36px;border:4px solid #e2e8f0;border-top-color:#2d6a9f;border-radius:50%;animation:spin .8s linear infinite;margin-right:12px}
@@ -154,6 +162,7 @@ tr.row-urgent:hover td{background:#feebc8}
       <span id="userBadge" class="badge"></span>
       <img id="userPhoto" class="user-avatar" style="display:none" alt="">
       <span id="userName" class="user-name"></span>
+      <div id="requestBtnArea" style="display:none"></div>
       <button class="btn-signout" onclick="signOutUser()">Sign Out</button>
     </div>
   </header>
@@ -315,10 +324,47 @@ tr.row-urgent:hover td{background:#feebc8}
   </div>
 </div>
 
+<!-- REQUEST EDITOR MODAL -->
+<div id="requestModal" onclick="if(event.target===this)this.style.display='none'" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;align-items:center;justify-content:center;padding:16px">
+  <div class="modal-box" style="max-width:420px">
+    <div class="modal-header">
+      <h2>🔔 Yêu cầu quyền Editor</h2>
+      <button class="btn-close" onclick="document.getElementById('requestModal').style.display='none'">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:#4a5568;margin-bottom:16px">Admin sẽ nhận email và duyệt quyền cho bạn. Quyền Editor cho phép thêm/sửa/xóa PO do chính bạn tạo.</p>
+      <div class="form-group">
+        <label>Ghi chú (không bắt buộc)</label>
+        <textarea id="requestNote" placeholder="Lý do cần quyền editor..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="document.getElementById('requestModal').style.display='none'">Hủy</button>
+      <button class="btn-save" onclick="submitAccessRequest()">📨 Gửi yêu cầu</button>
+    </div>
+  </div>
+</div>
+
+<!-- APPROVE/REJECT MODAL (deep link từ email) -->
+<div id="actionModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;align-items:center;justify-content:center;padding:16px">
+  <div class="modal-box" style="max-width:420px">
+    <div class="modal-header"><h2 id="actionModalTitle"></h2></div>
+    <div class="modal-body"><p id="actionModalBody" style="font-size:14px;color:#2d3748;line-height:1.6"></p></div>
+    <div class="modal-footer" id="actionModalFooter"></div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div id="toast"></div>
 
 <script>
+// ===== EMAILJS CONFIG — cập nhật sau khi setup EmailJS =====
+const EMAILJS_PUBLIC_KEY  = 'YOUR_PUBLIC_KEY';   // Account → Public Key
+const EMAILJS_SERVICE_ID  = 'YOUR_SERVICE_ID';   // Email Services → Service ID
+const EMAILJS_TEMPLATE_ID = 'YOUR_TEMPLATE_ID';  // Email Templates → Template ID
+const ADMIN_EMAIL = 'ntkt20111998@gmail.com';
+const APP_URL = 'https://ntkt20111998-spec.github.io/inspection-tracker';
+
 // ===== FIREBASE CONFIG =====
 const firebaseConfig = {
   apiKey: "AIzaSyDSLj0kYk5BAhOj6wIlcGK7UC2jVOU4Tio",
@@ -413,6 +459,12 @@ function initApp() {
 
   showScreen('app');
   subscribeData();
+
+  if (currentRole === 'admin') {
+    checkURLAction(); // Xử lý link approve/reject từ email
+  } else if (currentRole === 'viewer') {
+    loadMyRequestStatus(); // Hiển thị trạng thái yêu cầu của viewer
+  }
 }
 
 function showScreen(s) {
@@ -869,6 +921,150 @@ function downloadTemplate() {
   XLSX.utils.book_append_sheet(wb, ws, 'Import Data');
   XLSX.writeFile(wb, 'WS_Inspection_Template.xlsx');
   showToast('📋 Đã tải file template');
+}
+
+// ===== ACCESS REQUEST (Viewer → yêu cầu Editor) =====
+let myRequestStatus = null;
+
+async function loadMyRequestStatus() {
+  if (!currentUser) return;
+  try {
+    const snap = await db.collection('accessRequests')
+      .where('uid', '==', currentUser.uid)
+      .orderBy('requestedAt', 'desc').limit(1).get();
+    myRequestStatus = snap.empty ? null : snap.docs[0].data().status;
+  } catch(e) { myRequestStatus = null; }
+  renderRequestButton();
+}
+
+function renderRequestButton() {
+  const area = document.getElementById('requestBtnArea');
+  if (!area || currentRole !== 'viewer') return;
+  area.style.display = '';
+  if (myRequestStatus === 'pending') {
+    area.innerHTML = '<span class="req-badge req-pending">⏳ Đang chờ duyệt</span>';
+  } else if (myRequestStatus === 'rejected') {
+    area.innerHTML = '<span class="req-badge req-rejected">❌ Bị từ chối</span> <button class="btn-request" onclick="openRequestModal()">Gửi lại</button>';
+  } else {
+    area.innerHTML = '<button class="btn-request" onclick="openRequestModal()">🔔 Yêu cầu Editor</button>';
+  }
+}
+
+function openRequestModal() {
+  document.getElementById('requestNote').value = '';
+  document.getElementById('requestModal').style.display = 'flex';
+}
+
+async function submitAccessRequest() {
+  if (!currentUser) return;
+  const note = document.getElementById('requestNote').value.trim();
+
+  // Kiểm tra không có pending request trùng
+  const existing = await db.collection('accessRequests')
+    .where('uid', '==', currentUser.uid).where('status', '==', 'pending').limit(1).get();
+  if (!existing.empty) {
+    showToast('⚠️ Bạn đã có yêu cầu đang chờ duyệt', 3000); return;
+  }
+
+  try {
+    // Lưu vào Firestore
+    const ref = await db.collection('accessRequests').add({
+      uid: currentUser.uid,
+      email: currentUser.email,
+      name: currentUser.displayName || currentUser.email,
+      note: note || '',
+      status: 'pending',
+      requestedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    // Gửi email qua EmailJS (chỉ khi đã cấu hình)
+    if (EMAILJS_PUBLIC_KEY !== 'YOUR_PUBLIC_KEY') {
+      emailjs.init(EMAILJS_PUBLIC_KEY);
+      const now = new Date().toLocaleString('vi-VN', {timeZone:'Asia/Ho_Chi_Minh'});
+      await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+        to_email:     ADMIN_EMAIL,
+        from_name:    currentUser.displayName || currentUser.email,
+        from_email:   currentUser.email,
+        request_time: now,
+        note:         note || '(không có)',
+        approve_url:  `${APP_URL}/?action=approve&uid=${currentUser.uid}&reqId=${ref.id}`,
+        reject_url:   `${APP_URL}/?action=reject&uid=${currentUser.uid}&reqId=${ref.id}`
+      });
+      showToast('✅ Đã gửi yêu cầu! Admin sẽ nhận email để duyệt.');
+    } else {
+      showToast('✅ Đã ghi nhận yêu cầu (chưa gửi email — cần cấu hình EmailJS).');
+    }
+
+    document.getElementById('requestModal').style.display = 'none';
+    myRequestStatus = 'pending';
+    renderRequestButton();
+  } catch(err) {
+    showToast('❌ Lỗi: ' + err.message, 5000);
+  }
+}
+
+// ===== DEEP LINK APPROVAL (admin click link trong email) =====
+async function checkURLAction() {
+  const params = new URLSearchParams(window.location.search);
+  const action = params.get('action');
+  const uid    = params.get('uid');
+  const reqId  = params.get('reqId');
+  if (!action || !uid || currentRole !== 'admin') return;
+
+  // Xóa params khỏi URL (gọn hơn)
+  window.history.replaceState({}, '', window.location.pathname);
+
+  // Lấy tên người yêu cầu
+  let name = uid;
+  try {
+    const doc = await db.collection('users').doc(uid).get();
+    if (doc.exists) name = doc.data().displayName || doc.data().email || uid;
+  } catch(e) {}
+
+  const modal   = document.getElementById('actionModal');
+  const title   = document.getElementById('actionModalTitle');
+  const body    = document.getElementById('actionModalBody');
+  const footer  = document.getElementById('actionModalFooter');
+  modal.style.display = 'flex';
+
+  if (action === 'approve') {
+    title.textContent = '✅ Duyệt quyền Editor';
+    body.innerHTML = `Duyệt quyền <b>Editor</b> cho <b>${name}</b>?<br><small style="color:#718096">Họ sẽ có thể thêm/sửa/xóa PO do mình tạo.</small>`;
+    footer.innerHTML = `
+      <button class="btn-cancel" onclick="document.getElementById('actionModal').style.display='none'">Hủy</button>
+      <button class="btn-save" onclick="confirmApprove('${uid}','${reqId}')">✅ Duyệt</button>`;
+  } else {
+    title.textContent = '❌ Từ chối yêu cầu';
+    body.innerHTML = `Từ chối yêu cầu quyền Editor của <b>${name}</b>?`;
+    footer.innerHTML = `
+      <button class="btn-cancel" onclick="document.getElementById('actionModal').style.display='none'">Hủy</button>
+      <button class="btn-save" style="background:#e53e3e" onclick="confirmReject('${uid}','${reqId}')">❌ Từ chối</button>`;
+  }
+}
+
+async function confirmApprove(uid, reqId) {
+  try {
+    const batch = db.batch();
+    batch.update(db.collection('users').doc(uid), { role: 'editor' });
+    if (reqId) batch.update(db.collection('accessRequests').doc(reqId), {
+      status: 'approved',
+      reviewedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await batch.commit();
+    document.getElementById('actionModal').style.display = 'none';
+    showToast('✅ Đã duyệt quyền Editor thành công!');
+  } catch(e) { showToast('❌ Lỗi: ' + e.message, 5000); }
+}
+
+async function confirmReject(uid, reqId) {
+  try {
+    if (reqId) await db.collection('accessRequests').doc(reqId).update({
+      status: 'rejected',
+      reviewedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    document.getElementById('actionModal').style.display = 'none';
+    showToast('Đã từ chối yêu cầu.');
+  } catch(e) { showToast('❌ Lỗi: ' + e.message, 5000); }
 }
 
 // ===== TOAST =====
