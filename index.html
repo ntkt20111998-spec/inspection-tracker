@@ -60,9 +60,9 @@ header p{font-size:12px;opacity:.85;margin-top:2px}
 .btn-export:hover{background:#c05621}
 
 /* ===== TABLE ===== */
-.table-wrap{overflow:auto;max-height:calc(100vh - 260px);padding:16px 24px;padding-bottom:40px}
+.table-wrap{overflow-x:auto;padding:16px 24px;padding-bottom:40px}
 table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.07);font-size:13px}
-th{background:#1a3a5c;color:#fff;padding:11px 10px;text-align:left;font-weight:600;white-space:nowrap;position:sticky;top:0;z-index:5}
+th{background:#1a3a5c;color:#fff;padding:11px 10px;text-align:left;font-weight:600;white-space:nowrap;position:sticky;top:0;z-index:5;box-shadow:0 2px 0 rgba(0,0,0,.15)}
 th.sortable{cursor:pointer;user-select:none}
 th.sortable:hover{background:#253f5e}
 th.sort-asc,th.sort-desc{background:#2d5280}
@@ -439,6 +439,16 @@ function fmtDate(d) {
   return d;
 }
 
+function parseDate(s) {
+  // Handles DD/MM/YYYY (from Excel import) and YYYY-MM-DD (from date input)
+  if (!s) return null;
+  const dmy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (dmy) return new Date(+dmy[3], +dmy[2]-1, +dmy[1]);
+  const ymd = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (ymd) return new Date(+ymd[1], +ymd[2]-1, +ymd[3]);
+  return null;
+}
+
 function renderTable(data) {
   const tbody = document.getElementById('tableBody');
   const today = new Date(); today.setHours(0,0,0,0);
@@ -449,11 +459,13 @@ function renderTable(data) {
   tbody.innerHTML = data.map(r => {
     let rowClass = '';
     if (r.ngayFinal) {
-      const d = new Date(r.ngayFinal);
-      const diff = Math.ceil((d - today) / 86400000);
-      if (diff < 0) rowClass = 'row-overdue';
-      else if (diff <= 3) rowClass = 'row-urgent';
-      else if (diff <= 7) rowClass = 'row-warning';
+      const d = parseDate(r.ngayFinal);
+      if (d) {
+        const diff = Math.ceil((d - today) / 86400000);
+        if (diff < 0) rowClass = 'row-overdue';
+        else if (diff <= 3) rowClass = 'row-urgent';
+        else if (diff <= 7) rowClass = 'row-warning';
+      }
     }
     const ketQuaBadge = r.ketQua === 'Passed'
       ? `<span class="badge-pass">Passed</span>`
@@ -541,14 +553,8 @@ function applyFilters() {
 }
 
 function parseDateForSort(s) {
-  if (!s) return 0;
-  // DD/MM/YYYY
-  const dmy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (dmy) return new Date(dmy[3], dmy[2]-1, dmy[1]).getTime();
-  // YYYY-MM-DD
-  const ymd = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (ymd) return new Date(ymd[1], ymd[2]-1, ymd[3]).getTime();
-  return 0;
+  const d = parseDate(s);
+  return d ? d.getTime() : 0;
 }
 
 function populateFilterOptions() {
