@@ -7,6 +7,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#222;min-height:100vh}
@@ -621,53 +622,96 @@ function importFile(event) {
   if (currentRole !== 'admin') return;
   const file = event.target.files[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = async (e) => {
-    const text = e.target.result;
-    const lines = text.split('\n').map(l => l.trim()).filter(l => l);
-    if (lines.length < 2) { showToast('⚠️ File trống hoặc chỉ có header', 4000); return; }
-    let count = 0;
-    const batch = db.batch();
-    for (let i = 1; i < lines.length; i++) {
-      // Handle both TSV (Excel copy-paste) and CSV
-      let cols;
-      if (lines[i].includes('\t')) {
-        cols = lines[i].split('\t');
-      } else {
-        // Simple CSV parse
-        cols = lines[i].match(/(".*?"|[^,]+|(?<=,)(?=,)|^(?=,)|(?<=,)$)/g) || lines[i].split(',');
-        cols = cols.map(c => c.replace(/^"|"$/g, '').replace(/""/g, '"'));
+  const ext = file.name.split('.').pop().toLowerCase();
+
+  if (ext === 'xlsx' || ext === 'xls') {
+    // Parse Excel binary with SheetJS
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        // sheet_to_json with header:1 → array of arrays; skip row 0 (title) if col A row 1 has no PO-like value
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+        // Auto-detect header row: find first row where col[1] looks like a PO or is header text
+        let startRow = 1; // default: skip row 0
+        for (let i = 0; i < Math.min(rows.length, 5); i++) {
+          const v = String(rows[i][1] || '').trim().toLowerCase();
+          if (v === 'số po' || v === 'so po' || v === 'po') { startRow = i + 1; break; }
+        }
+
+        await processRows(rows.slice(startRow));
+      } catch(err) {
+        showToast('❌ Không đọc được file Excel: ' + err.message, 5000);
       }
-      const data = {
-        thang: (cols[0]||'').trim(),
-        soPO: (cols[1]||'').trim(),
-        brand: (cols[2]||'').trim(),
-        soHD: (cols[3]||'').trim(),
-        lclFcl: (cols[4]||'').trim(),
-        ngayRaHang: (cols[5]||'').trim(),
-        ngayInline: (cols[6]||'').trim(),
-        ngayFinal: (cols[7]||'').trim(),
-        xuong: (cols[8]||'').trim(),
-        wsi: (cols[9]||'').trim(),
-        daKiem: (cols[10]||'').trim(),
-        ketQua: (cols[11]||'').trim(),
-        ghiChu: (cols[12]||'').trim(),
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      };
-      if (!data.soPO) continue;
-      const docRef = db.collection('inspections').doc();
-      batch.set(docRef, data);
-      count++;
-    }
-    try {
-      await batch.commit();
-      showToast(`✅ Import thành công ${count} dòng`);
-    } catch(e) {
-      showToast('❌ Lỗi import: ' + e.message, 5000);
-    }
-  };
-  reader.readAsText(file, 'UTF-8');
+    };
+    reader.readAsArrayBuffer(file);
+  } else {
+    // CSV / TSV / TXT
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const text = e.target.result;
+      const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+      if (lines.length < 2) { showToast('⚠️ File trống hoặc chỉ có header', 4000); return; }
+      const rows = lines.slice(1).map(line => {
+        if (line.includes('\t')) return line.split('\t');
+        const cols = line.match(/(".*?"|[^,]+|(?<=,)(?=,)|^(?=,)|(?<=,)$)/g) || line.split(',');
+        return cols.map(c => c.replace(/^"|"$/g, '').replace(/""/g, '"'));
+      });
+      await processRows(rows);
+    };
+    reader.readAsText(file, 'UTF-8');
+  }
   event.target.value = '';
+}
+
+function excelDateToString(val) {
+  if (!val) return '';
+  if (val instanceof Date) {
+    // Format as DD/MM/YYYY
+    const d = val.getDate().toString().padStart(2,'0');
+    const m = (val.getMonth()+1).toString().padStart(2,'0');
+    const y = val.getFullYear();
+    return `${d}/${m}/${y}`;
+  }
+  return String(val).trim();
+}
+
+async function processRows(rows) {
+  if (!rows.length) { showToast('⚠️ Không có dữ liệu để import', 4000); return; }
+  let count = 0;
+  const batch = db.batch();
+  for (const cols of rows) {
+    const soPO = String(cols[1] || '').trim();
+    if (!soPO) continue;
+    const data = {
+      thang:      String(cols[0]  || '').trim(),
+      soPO,
+      brand:      String(cols[2]  || '').trim(),
+      soHD:       String(cols[3]  || '').trim(),
+      lclFcl:     String(cols[4]  || '').trim(),
+      ngayRaHang: excelDateToString(cols[5]),
+      ngayInline: excelDateToString(cols[6]),
+      ngayFinal:  excelDateToString(cols[7]),
+      xuong:      String(cols[8]  || '').trim(),
+      wsi:        String(cols[9]  || '').trim(),
+      daKiem:     String(cols[10] || '').trim(),
+      ketQua:     String(cols[11] || '').trim(),
+      ghiChu:     String(cols[12] || '').trim(),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    const docRef = db.collection('inspections').doc();
+    batch.set(docRef, data);
+    count++;
+  }
+  if (count === 0) { showToast('⚠️ Không tìm thấy dòng hợp lệ (cột Số PO trống)', 4000); return; }
+  try {
+    await batch.commit();
+    showToast(`✅ Import thành công ${count} dòng`);
+  } catch(err) {
+    showToast('❌ Lỗi import: ' + err.message, 5000);
+  }
 }
 
 // ===== TOAST =====
