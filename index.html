@@ -182,6 +182,7 @@ tr.row-urgent:hover td{background:#feebc8}
       <input type="file" accept=".xlsx,.xls,.csv,.tsv,.txt" onchange="importFile(event)" style="display:none">
     </label>
     <button class="btn btn-export" onclick="exportCSV()">📊 Export CSV</button>
+    <button class="btn" onclick="downloadTemplate()" style="background:#6b46c1;color:#fff">📋 Tải Template</button>
   </div>
 
   <!-- LEGEND -->
@@ -433,9 +434,19 @@ function subscribeData() {
 // ===== RENDER =====
 function fmtDate(d) {
   if (!d) return '';
-  // d is YYYY-MM-DD string
-  const parts = d.split('-');
-  if (parts.length === 3) return parts[2]+'/'+parts[1]+'/'+parts[0];
+  // YYYY-MM-DD → DD/MM/YYYY
+  const ymd = d.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (ymd) return `${ymd[3]}/${ymd[2]}/${ymd[1]}`;
+  // DD/MM/YYYY → hiển thị nguyên (dữ liệu cũ)
+  return d;
+}
+
+// Chuyển về YYYY-MM-DD cho input[type=date] trong edit form
+function toInputDate(d) {
+  if (!d) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+  const m = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
   return d;
 }
 
@@ -596,9 +607,9 @@ function showEditModal(id) {
   document.getElementById('f_brand').value = r.brand || '';
   document.getElementById('f_soHD').value = r.soHD || '';
   document.getElementById('f_lclFcl').value = r.lclFcl || '';
-  document.getElementById('f_ngayRaHang').value = r.ngayRaHang || '';
-  document.getElementById('f_ngayInline').value = r.ngayInline || '';
-  document.getElementById('f_ngayFinal').value = r.ngayFinal || '';
+  document.getElementById('f_ngayRaHang').value = toInputDate(r.ngayRaHang);
+  document.getElementById('f_ngayInline').value = toInputDate(r.ngayInline);
+  document.getElementById('f_ngayFinal').value = toInputDate(r.ngayFinal);
   document.getElementById('f_xuong').value = r.xuong || '';
   document.getElementById('f_wsi').value = r.wsi || '';
   document.getElementById('f_daKiem').value = r.daKiem || '';
@@ -690,10 +701,10 @@ function importFile(event) {
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-        const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+        const wb = XLSX.read(e.target.result, { type: 'array' });
         const ws = wb.Sheets[wb.SheetNames[0]];
-        // sheet_to_json with header:1 → array of arrays; skip row 0 (title) if col A row 1 has no PO-like value
-        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        // raw:false → SheetJS trả về giá trị theo định dạng ô (không convert sang JS Date)
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
 
         // Auto-detect header row: find first row where col[1] looks like a PO or is header text
         let startRow = 1; // default: skip row 0
@@ -728,17 +739,16 @@ function importFile(event) {
 }
 
 function excelDateToString(val) {
+  // Với raw:false, SheetJS luôn trả về string. Chuẩn hóa về YYYY-MM-DD để lưu nhất quán.
   if (!val) return '';
-  if (val instanceof Date) {
-    // SheetJS trả về UTC midnight date. Cộng 12h để tránh lệch ngày ở mọi timezone.
-    const safe = new Date(val.getTime() + 12 * 60 * 60 * 1000);
-    const d = safe.getUTCDate().toString().padStart(2,'0');
-    const m = (safe.getUTCMonth()+1).toString().padStart(2,'0');
-    const y = safe.getUTCFullYear();
-    return `${d}/${m}/${y}`;
-  }
-  // Nếu đã là string (text cell trong Excel), trả về nguyên
-  return String(val).trim();
+  const s = String(val).trim();
+  if (!s) return '';
+  // Đã là YYYY-MM-DD → giữ nguyên
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  // DD/MM/YYYY hoặc D/M/YYYY → chuyển sang YYYY-MM-DD
+  const dmy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (dmy) return `${dmy[3]}-${dmy[2].padStart(2,'0')}-${dmy[1].padStart(2,'0')}`;
+  return s;
 }
 
 async function processRows(rows) {
@@ -786,6 +796,54 @@ async function processRows(rows) {
   } catch(err) {
     showToast('❌ Lỗi import: ' + err.message, 5000);
   }
+}
+
+// ===== TEMPLATE DOWNLOAD =====
+function downloadTemplate() {
+  const wb = XLSX.utils.book_new();
+  const ws = {};
+
+  // Đổi ngày serial Excel: days from Dec 30, 1899
+  const serial = (y, m, d) => Math.floor(
+    (new Date(Date.UTC(y, m-1, d)) - new Date(Date.UTC(1899, 11, 30))) / 86400000
+  );
+
+  const headers = [
+    'Tháng','Số PO','Brand','Số HĐ','LCL/FCL',
+    'Ship Window Start Date','Ngày Inline','Ngày Final',
+    'Xưởng kiểm','WSI/CD','Đã Kiểm (Y/N)','Kết Quả (Passed/Failed)','Ghi Chú'
+  ];
+
+  // Row 0: headers
+  headers.forEach((h, c) => {
+    ws[XLSX.utils.encode_cell({r:0, c})] = {v: h, t: 's'};
+  });
+
+  // Sample rows — date cells dùng serial number + format DD/MM/YYYY
+  const DATE_FMT = 'DD/MM/YYYY';
+  const samples = [
+    ['7/2026','21405087WSR','WS','126','FCL', serial(2026,6,7), serial(2026,6,14), serial(2026,6,21), 'Củ Chi CD8','WSI','N','Passed',''],
+    ['7/2026','21405088WSR','WS','127','LCL', serial(2026,6,10), serial(2026,6,17), serial(2026,6,24), 'Củ Chi CD9','CD','N','',''],
+  ];
+
+  samples.forEach((row, ri) => {
+    row.forEach((v, c) => {
+      const isDate = c >= 5 && c <= 7;
+      ws[XLSX.utils.encode_cell({r: ri+1, c})] = isDate
+        ? {v, t: 'n', z: DATE_FMT}
+        : {v: v === '' ? '' : String(v), t: 's'};
+    });
+  });
+
+  ws['!ref'] = XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:2,c:12}});
+  ws['!cols'] = [
+    {wch:8},{wch:16},{wch:8},{wch:8},{wch:8},
+    {wch:22},{wch:16},{wch:16},{wch:14},{wch:8},{wch:12},{wch:20},{wch:20}
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Import Data');
+  XLSX.writeFile(wb, 'WS_Inspection_Template.xlsx');
+  showToast('📋 Đã tải file template');
 }
 
 // ===== TOAST =====
