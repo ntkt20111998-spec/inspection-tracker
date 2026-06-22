@@ -929,10 +929,18 @@ let myRequestStatus = null;
 async function loadMyRequestStatus() {
   if (!currentUser) return;
   try {
+    // Không dùng orderBy để tránh cần composite index
     const snap = await db.collection('accessRequests')
       .where('uid', '==', currentUser.uid)
-      .orderBy('requestedAt', 'desc').limit(1).get();
-    myRequestStatus = snap.empty ? null : snap.docs[0].data().status;
+      .where('status', '==', 'pending').limit(1).get();
+    if (!snap.empty) { myRequestStatus = 'pending'; }
+    else {
+      // Check xem có rejected không
+      const rej = await db.collection('accessRequests')
+        .where('uid', '==', currentUser.uid)
+        .where('status', '==', 'rejected').limit(1).get();
+      myRequestStatus = rej.empty ? null : 'rejected';
+    }
   } catch(e) { myRequestStatus = null; }
   renderRequestButton();
 }
@@ -959,14 +967,16 @@ async function submitAccessRequest() {
   if (!currentUser) return;
   const note = document.getElementById('requestNote').value.trim();
 
-  // Kiểm tra không có pending request trùng
-  const existing = await db.collection('accessRequests')
-    .where('uid', '==', currentUser.uid).where('status', '==', 'pending').limit(1).get();
-  if (!existing.empty) {
-    showToast('⚠️ Bạn đã có yêu cầu đang chờ duyệt', 3000); return;
-  }
-
   try {
+    // Kiểm tra pending request trùng (trong try-catch để không block nếu rules chưa cập nhật)
+    try {
+      const existing = await db.collection('accessRequests')
+        .where('uid', '==', currentUser.uid).where('status', '==', 'pending').limit(1).get();
+      if (!existing.empty) {
+        showToast('⚠️ Bạn đã có yêu cầu đang chờ duyệt', 3000); return;
+      }
+    } catch(e) { /* tiếp tục nếu không đọc được (rules chưa set) */ }
+
     // Lưu vào Firestore
     const ref = await db.collection('accessRequests').add({
       uid: currentUser.uid,
@@ -977,8 +987,8 @@ async function submitAccessRequest() {
       requestedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
-    // Gửi email qua EmailJS (chỉ khi đã cấu hình)
-    if (EMAILJS_PUBLIC_KEY !== 'YOUR_PUBLIC_KEY') {
+    // Gửi email qua EmailJS
+    try {
       emailjs.init(EMAILJS_PUBLIC_KEY);
       const now = new Date().toLocaleString('vi-VN', {timeZone:'Asia/Ho_Chi_Minh'});
       await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
@@ -991,15 +1001,21 @@ async function submitAccessRequest() {
         reject_url:   `${APP_URL}/?action=reject&uid=${currentUser.uid}&reqId=${ref.id}`
       });
       showToast('✅ Đã gửi yêu cầu! Admin sẽ nhận email để duyệt.');
-    } else {
-      showToast('✅ Đã ghi nhận yêu cầu (chưa gửi email — cần cấu hình EmailJS).');
+    } catch(emailErr) {
+      // Lưu Firestore OK nhưng email lỗi — vẫn chấp nhận
+      showToast('✅ Đã ghi nhận yêu cầu (lỗi gửi email: ' + emailErr.text + ')');
     }
 
     document.getElementById('requestModal').style.display = 'none';
     myRequestStatus = 'pending';
     renderRequestButton();
+
   } catch(err) {
-    showToast('❌ Lỗi: ' + err.message, 5000);
+    if (err.code === 'permission-denied') {
+      showToast('❌ Admin chưa cập nhật Firestore Rules cho accessRequests. Liên hệ Admin.', 6000);
+    } else {
+      showToast('❌ Lỗi: ' + err.message, 5000);
+    }
   }
 }
 
