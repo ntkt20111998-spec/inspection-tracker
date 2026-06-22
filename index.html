@@ -32,6 +32,7 @@ header p{font-size:12px;opacity:.85;margin-top:2px}
 .user-name{font-size:13px;font-weight:500}
 .badge{padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;text-transform:uppercase}
 .badge-admin{background:#f6ad55;color:#7b341e}
+.badge-editor{background:#68d391;color:#1a4731}
 .badge-viewer{background:#63b3ed;color:#1a365d}
 .btn-signout{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;transition:background .2s}
 .btn-signout:hover{background:rgba(255,255,255,.35)}
@@ -176,13 +177,13 @@ tr.row-urgent:hover td{background:#feebc8}
       <option value="Passed">Passed</option>
       <option value="Failed">Failed</option>
     </select>
-    <button class="btn btn-add admin-only" onclick="showAddModal()" style="display:none">+ Thêm PO</button>
-    <label class="btn btn-import admin-only" style="display:none;cursor:pointer">
+    <button class="btn btn-add write-access" onclick="showAddModal()" style="display:none">+ Thêm PO</button>
+    <label class="btn btn-import write-access" style="display:none;cursor:pointer">
       📥 Import Excel/CSV
       <input type="file" accept=".xlsx,.xls,.csv,.tsv,.txt" onchange="importFile(event)" style="display:none">
     </label>
     <button class="btn btn-export" onclick="exportCSV()">📊 Export CSV</button>
-    <button class="btn" onclick="downloadTemplate()" style="background:#6b46c1;color:#fff">📋 Tải Template</button>
+    <button class="btn write-access" onclick="downloadTemplate()" style="display:none;background:#6b46c1;color:#fff">📋 Tải Template</button>
   </div>
 
   <!-- LEGEND -->
@@ -210,11 +211,12 @@ tr.row-urgent:hover td{background:#feebc8}
           <th class="sortable" onclick="sortTable('daKiem')">Đã Kiểm <span class="sort-icon" id="si-daKiem">⇅</span></th>
           <th class="sortable" onclick="sortTable('ketQua')">Kết Quả <span class="sort-icon" id="si-ketQua">⇅</span></th>
           <th>Ghi Chú</th>
-          <th id="actionCol" class="admin-only" style="display:none">Thao Tác</th>
+          <th>Người tạo</th>
+          <th id="actionCol" class="write-access" style="display:none">Thao Tác</th>
         </tr>
       </thead>
       <tbody id="tableBody">
-        <tr class="empty-row"><td colspan="14">Chưa có dữ liệu. Đăng nhập với quyền Admin để thêm PO.</td></tr>
+        <tr class="empty-row"><td colspan="16">Chưa có dữ liệu. Đăng nhập với quyền Admin để thêm PO.</td></tr>
       </tbody>
     </table>
   </div>
@@ -398,9 +400,12 @@ function initApp() {
   if (currentRole === 'admin') {
     badge.textContent = 'Admin';
     badge.className = 'badge badge-admin';
-    // Show admin elements
     document.querySelectorAll('.admin-only').forEach(el => el.style.display = '');
-    document.getElementById('actionCol').style.display = '';
+    document.querySelectorAll('.write-access').forEach(el => el.style.display = '');
+  } else if (currentRole === 'editor') {
+    badge.textContent = 'Editor';
+    badge.className = 'badge badge-editor';
+    document.querySelectorAll('.write-access').forEach(el => el.style.display = '');
   } else {
     badge.textContent = 'Viewer';
     badge.className = 'badge badge-viewer';
@@ -464,7 +469,7 @@ function renderTable(data) {
   const tbody = document.getElementById('tableBody');
   const today = new Date(); today.setHours(0,0,0,0);
   if (!data.length) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="14">Không có dữ liệu phù hợp.</td></tr>';
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="16">Không có dữ liệu phù hợp.</td></tr>';
     return;
   }
   tbody.innerHTML = data.map(r => {
@@ -483,8 +488,10 @@ function renderTable(data) {
       : r.ketQua === 'Failed'
       ? `<span class="badge-fail">Failed</span>`
       : (r.ketQua || '');
-    const adminActions = currentRole === 'admin'
-      ? `<td><button class="btn-sm btn-edit" onclick="showEditModal('${r.id}')">Sửa</button> <button class="btn-sm btn-del" onclick="deleteRecord('${r.id}')">Xóa</button></td>`
+    const hasWriteAccess = currentRole === 'admin' || currentRole === 'editor';
+    const canEdit = currentRole === 'admin' || (currentRole === 'editor' && r.createdBy === currentUser?.uid);
+    const actionCell = hasWriteAccess
+      ? `<td>${canEdit ? `<button class="btn-sm btn-edit" onclick="showEditModal('${r.id}')">Sửa</button> <button class="btn-sm btn-del" onclick="deleteRecord('${r.id}')">Xóa</button>` : ''}</td>`
       : '';
     return `<tr class="${rowClass}">
       <td>${r.thang||''}</td>
@@ -500,7 +507,8 @@ function renderTable(data) {
       <td>${r.daKiem||''}</td>
       <td>${ketQuaBadge}</td>
       <td>${r.ghiChu||''}</td>
-      ${adminActions}
+      <td style="font-size:11px;color:#718096">${r.createdByName||'—'}</td>
+      ${actionCell}
     </tr>`;
   }).join('');
 }
@@ -589,7 +597,7 @@ function updateSummary(data) {
 
 // ===== MODAL =====
 function showAddModal() {
-  if (currentRole !== 'admin') return;
+  if (currentRole !== 'admin' && currentRole !== 'editor') return;
   editingId = null;
   document.getElementById('modalTitle').textContent = 'Thêm PO mới';
   document.getElementById('poForm').reset();
@@ -597,9 +605,12 @@ function showAddModal() {
 }
 
 function showEditModal(id) {
-  if (currentRole !== 'admin') return;
+  if (currentRole !== 'admin' && currentRole !== 'editor') return;
   const r = allData.find(x => x.id === id);
   if (!r) return;
+  if (currentRole === 'editor' && r.createdBy !== currentUser?.uid) {
+    showToast('⚠️ Bạn chỉ được sửa PO do mình tạo', 3000); return;
+  }
   editingId = id;
   document.getElementById('modalTitle').textContent = 'Sửa PO — ' + (r.soPO || id);
   document.getElementById('f_thang').value = r.thang || '';
@@ -651,6 +662,8 @@ async function submitForm() {
     } else {
       await db.collection('inspections').add({
         ...data,
+        createdBy: currentUser.uid,
+        createdByName: currentUser.displayName || currentUser.email,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
       showToast('✅ Đã thêm PO mới');
@@ -662,8 +675,11 @@ async function submitForm() {
 }
 
 async function deleteRecord(id) {
-  if (currentRole !== 'admin') return;
+  if (currentRole !== 'admin' && currentRole !== 'editor') return;
   const r = allData.find(x => x.id === id);
+  if (currentRole === 'editor' && r?.createdBy !== currentUser?.uid) {
+    showToast('⚠️ Bạn chỉ được xóa PO do mình tạo', 3000); return;
+  }
   if (!confirm('Xóa PO ' + (r ? r.soPO : id) + '?')) return;
   try {
     await db.collection('inspections').doc(id).delete();
@@ -691,7 +707,7 @@ function exportCSV() {
 
 // ===== IMPORT FILE =====
 function importFile(event) {
-  if (currentRole !== 'admin') return;
+  if (currentRole !== 'admin' && currentRole !== 'editor') return;
   const file = event.target.files[0];
   if (!file) return;
   const ext = file.name.split('.').pop().toLowerCase();
@@ -753,7 +769,7 @@ function excelDateToString(val) {
 
 async function processRows(rows) {
   if (!rows.length) { showToast('⚠️ Không có dữ liệu để import', 4000); return; }
-  let created = 0, updated = 0;
+  let created = 0, updated = 0, skipped = 0;
   const batch = db.batch();
   for (const cols of rows) {
     const soPO = String(cols[1] || '').trim();
@@ -773,26 +789,35 @@ async function processRows(rows) {
       ketQua:     String(cols[11] || '').trim(),
       ghiChu:     String(cols[12] || '').trim(),
     };
-    // Upsert: nếu soPO đã tồn tại → update, không thì tạo mới
     const existing = allData.find(r => r.soPO === soPO);
     if (existing) {
-      batch.update(db.collection('inspections').doc(existing.id), fields);
-      updated++;
+      // Admin: upsert tất cả | Editor: chỉ update record của mình, skip của người khác
+      if (currentRole === 'admin' || existing.createdBy === currentUser?.uid) {
+        batch.update(db.collection('inspections').doc(existing.id), fields);
+        updated++;
+      } else {
+        skipped++;
+      }
     } else {
       batch.set(db.collection('inspections').doc(), {
         ...fields,
+        createdBy: currentUser.uid,
+        createdByName: currentUser.displayName || currentUser.email,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
       created++;
     }
   }
-  if (created + updated === 0) { showToast('⚠️ Không tìm thấy dòng hợp lệ (cột Số PO trống)', 4000); return; }
+  if (created + updated === 0 && skipped === 0) {
+    showToast('⚠️ Không tìm thấy dòng hợp lệ (cột Số PO trống)', 4000); return;
+  }
   try {
-    await batch.commit();
+    if (created + updated > 0) await batch.commit();
     const parts = [];
     if (created) parts.push(`thêm mới ${created}`);
     if (updated) parts.push(`cập nhật ${updated}`);
-    showToast(`✅ Import thành công: ${parts.join(', ')} dòng`);
+    if (skipped) parts.push(`bỏ qua ${skipped} (của người khác)`);
+    showToast(`✅ Import: ${parts.join(', ')}`);
   } catch(err) {
     showToast('❌ Lỗi import: ' + err.message, 5000);
   }
