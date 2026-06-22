@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inspection Schedule Tracker</title>
+<style>
+:root{--p:#1a5276;--pl:#2e86c1;--ac:#e67e22;--dg:#e74c3c;--ok:#27ae60;--wn:#f39c12;--bg:#f4f6f9;--cd:#fff;--bd:#dde1e7;--tx:#2c3e50;--mu:#7f8c8d}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--tx);font-size:13px}
+.hd{background:var(--p);color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between}
+.hd h1{font-size:18px;font-weight:700}.hd .sub{font-size:11px;opacity:.75;margin-top:2px}
+.hdr{display:flex;gap:8px;align-items:center}
+.tabs{background:var(--p);display:flex;padding:0 20px}
+.tab{padding:8px 18px;color:rgba(255,255,255,.6);cursor:pointer;font-size:13px;border-bottom:3px solid transparent;transition:.2s}
+.tab.active{color:#fff;border-bottom:3px solid var(--ac);font-weight:600}.tab:hover{color:#fff}
+.pnl{display:none;padding:16px 20px}.pnl.active{display:block}
+.sg{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.sc{background:var(--cd);border-radius:8px;padding:14px 16px;border-left:4px solid var(--pl);box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.sc .lb{font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:.5px}
+.sc .vl{font-size:26px;font-weight:700;color:var(--p);margin-top:4px}
+.sc.ps{border-left-color:var(--ok)}.sc.ps .vl{color:var(--ok)}
+.sc.fl{border-left-color:var(--dg)}.sc.fl .vl{color:var(--dg)}
+.sc.pd{border-left-color:var(--wn)}.sc.pd .vl{color:var(--wn)}
+.sc.ov{border-left-color:#c0392b}.sc.ov .vl{color:#c0392b}
+.flt{background:var(--cd);border-radius:8px;padding:12px 16px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.fg{display:flex;align-items:center;gap:6px}.fg label{font-size:11px;color:var(--mu);white-space:nowrap}
+.flt input,.flt select{border:1px solid var(--bd);border-radius:5px;padding:5px 8px;font-size:12px;background:#f8fafc;outline:none}
+.flt input:focus,.flt select:focus{border-color:var(--pl)}.flt input[type=text]{width:200px}
+.btn{padding:6px 14px;border-radius:5px;border:none;cursor:pointer;font-size:12px;font-weight:600;transition:.15s}
+.bp{background:var(--p);color:#fff}.bp:hover{background:var(--pl)}
+.bs{background:var(--ok);color:#fff}.bs:hover{background:#219a52}
+.bd2{background:var(--dg);color:#fff}.bd2:hover{background:#c0392b}
+.ba{background:var(--ac);color:#fff}.ba:hover{background:#d35400}
+.bsm{padding:3px 8px;font-size:11px}
+.bo{background:transparent;border:1px solid var(--bd);color:var(--tx)}.bo:hover{background:#f0f0f0}
+.bg2{background:transparent;border:1px solid rgba(255,255,255,.4);color:#fff}.bg2:hover{background:rgba(255,255,255,.15)}
+.ml{margin-left:auto}
+.tw{overflow-x:auto;background:var(--cd);border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+table{width:100%;border-collapse:collapse;min-width:1100px}
+thead th{background:#eef2f7;padding:9px 10px;text-align:left;font-size:11px;font-weight:700;color:var(--p);text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;cursor:pointer;user-select:none;border-bottom:2px solid var(--bd)}
+thead th:hover{background:#dce6f0}
+tbody tr{border-bottom:1px solid #f0f2f5;transition:background .1s}
+tbody tr:hover{background:#f7fafd}
+tbody td{padding:8px 10px;font-size:12px;vertical-align:middle}
+tr.ro{background:#fff5f5!important}tr.ro:hover{background:#ffe8e8!important}
+tr.rw{background:#fffbf0!important}tr.rw:hover{background:#fff3cc!important}
+tr.rp{background:#f0fff4!important}tr.rf{background:#fff0f0!important}
+.bge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700}
+.bgps{background:#d5f5e3;color:#1e8449}.bgfl{background:#fce4e4;color:#a93226}
+.bgpd{background:#fef9e7;color:#b7770d;border:1px solid #f0d080}
+.bgy{background:#d5f5e3;color:#1e8449}.bgn{background:#eaecee;color:#555}
+.bgbr{background:#e8f4fd;color:#1a5276;font-size:10px}
+.do{color:#e74c3c;font-weight:700}.dw{color:#e67e22;font-weight:600}
+.ov2{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.45);z-index:1000;align-items:center;justify-content:center}
+.ov2.open{display:flex}
+.mdl{background:#fff;border-radius:10px;padding:24px;width:640px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.18)}
+.mdl h2{font-size:16px;color:var(--p);margin-bottom:18px;border-bottom:2px solid var(--bd);padding-bottom:10px}
+.fg2c{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.fg2c .full{grid-column:1/-1}
+.fg2{display:flex;flex-direction:column;gap:4px}
+.fg2 label{font-size:11px;font-weight:600;color:var(--mu);text-transform:uppercase}
+.fg2 input,.fg2 select,.fg2 textarea{border:1px solid var(--bd);border-radius:5px;padding:7px 10px;font-size:13px;font-family:inherit;outline:none;background:#f8fafc}
+.fg2 input:focus,.fg2 select:focus,.fg2 textarea:focus{border-color:var(--pl);background:#fff}
+.fg2 textarea{resize:vertical;min-height:60px}
+.mdf{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;padding-top:14px;border-top:1px solid var(--bd)}
+.imdl{width:780px}
+.its{display:flex;border-bottom:2px solid var(--bd);margin-bottom:16px}
+.it{padding:7px 16px;cursor:pointer;font-size:12px;font-weight:600;color:var(--mu);border-bottom:2px solid transparent;margin-bottom:-2px}
+.it.active{color:var(--p);border-bottom:2px solid var(--p)}
+.ip{display:none}.ip.active{display:block}
+.hint{font-size:11px;color:var(--mu);margin-bottom:8px;line-height:1.7;background:#f8fafc;border-radius:5px;padding:8px 10px;border-left:3px solid var(--pl)}
+.hint code{background:#e8f4fd;color:var(--p);padding:1px 4px;border-radius:3px;font-family:monospace;font-size:11px}
+#pa{width:100%;height:120px;border:1px solid var(--bd);border-radius:5px;padding:8px;font-size:12px;font-family:monospace;resize:vertical;outline:none}
+#pa:focus{border-color:var(--pl)}
+.dz{border:2px dashed var(--bd);border-radius:8px;padding:28px;text-align:center;color:var(--mu);cursor:pointer;transition:.2s}
+.dz:hover,.dz.drag{border-color:var(--pl);background:#f0f7ff;color:var(--p)}
+.dz .dzi{font-size:28px;margin-bottom:6px}
+.dz input[type=file]{display:none}
+.pvw{margin-top:14px;max-height:220px;overflow:auto;border:1px solid var(--bd);border-radius:6px}
+.pvw table{min-width:800px}
+.pvw thead th{background:#eef2f7;padding:6px 8px;font-size:10px;font-weight:700;color:var(--p);text-transform:uppercase;white-space:nowrap;position:sticky;top:0}
+.pvw tbody td{padding:5px 8px;font-size:11px;border-bottom:1px solid #f0f2f5}
+.imd{display:flex;gap:16px;font-size:12px;margin-top:10px}
+.imd label{display:flex;align-items:center;gap:5px;cursor:pointer}
+.pok{font-size:12px;color:var(--ok);font-weight:600;margin-top:6px}
+.per{font-size:12px;color:var(--dg);margin-top:6px}
+.nc{max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--mu);font-style:italic}
+.pg{display:flex;gap:6px;align-items:center;justify-content:flex-end;padding:10px 16px}
+.pb{border:1px solid var(--bd);background:#fff;border-radius:4px;padding:3px 9px;font-size:12px;cursor:pointer}
+.pb.active{background:var(--p);color:#fff;border-color:var(--p)}.pb:disabled{opacity:.4;cursor:default}
+.pi2{font-size:11px;color:var(--mu)}
+.gt{background:var(--cd);border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden}
+.gt table{min-width:400px}
+.gh{padding:12px 16px;font-weight:700;color:var(--p);border-bottom:2px solid var(--bd);font-size:13px}
+.emp{text-align:center;padding:40px 20px;color:var(--mu)}
+</style>
+</head>
+<body>
+<div class="hd">
+  <div><h1>🏭 Inspection Schedule Tracker</h1><div class="sub">Cat Dang Handicraft — WS Customer Group</div></div>
+  <div class="hdr">
+    <button class="btn bg2" onclick="exportCSV()">⬇ Export CSV</button>
+    <button class="btn bg2" onclick="openImp()">📥 Import Excel</button>
+    <button class="btn ba" onclick="openFrm()">+ Thêm PO</button>
+  </div>
+</div>
+<div class="tabs">
+  <div class="tab active" onclick="swTab('list',this)">📋 Danh sách PO</div>
+  <div class="tab" onclick="swTab('dash',this)">📊 Dashboard</div>
+</div>
+<!-- LIST -->
+<div class="pnl active" id="pnl-list">
+  <div class="flt">
+    <div class="fg"><label>🔍</label><input type="text" id="fS" placeholder="Tìm PO, Brand, Số HĐ..." oninput="go()"></div>
+    <div class="fg"><label>Brand</label><select id="fB" onchange="go()"><option value="">Tất cả</option></select></div>
+    <div class="fg"><label>Tháng</label><select id="fM" onchange="go()"><option value="">Tất cả</option></select></div>
+    <div class="fg"><label>Kết quả</label>
+      <select id="fR" onchange="go()">
+        <option value="">Tất cả</option><option value="Passed">Passed</option>
+        <option value="Failed">Failed</option><option value="pend">Chưa kiểm</option>
+      </select>
+    </div>
+    <div class="fg"><label>Deadline</label>
+      <select id="fD" onchange="go()">
+        <option value="">Tất cả</option><option value="ov">Quá hạn</option><option value="sn">≤ 7 ngày</option>
+      </select>
+    </div>
+    <div class="ml" style="display:flex;gap:8px;align-items:center">
+      <span class="pi2" id="rc"></span>
+      <button class="btn bo bsm" onclick="clf()">✕ Xoá filter</button>
+    </div>
+  </div>
+  <div class="tw">
+    <table>
+      <thead><tr>
+        <th onclick="srt('thang')">Tháng ↕</th><th onclick="srt('soPO')">Số PO ↕</th>
+        <th onclick="srt('brand')">Brand ↕</th><th>Số HĐ</th>
+        <th onclick="srt('lclFcl')">LCL / FCL ↕</th><th onclick="srt('lclFcl')">LCL / FCL ↕</th><th onclick="srt('ngayRaHang')">Ship Window ↕</th>
+        <th onclick="srt('ngayInline')">Ngày Inline ↕</th>
+        <th onclick="srt('ngayFinal')">Ngày Final ↕</th>
+        <th>Xưởng kiểm</th><th>WSI/CD</th>
+        <th onclick="srt('daKiem')">Đã kiểm ↕</th>
+        <th onclick="srt('ketQua')">Kết quả ↕</th>
+        <th>Ghi chú</th><th>Thao tác</th>
+      </tr></thead>
+      <tbody id="tb"></tbody>
+    </table>
+    <div id="emp" class="emp" style="display:none">📭 Không có dữ liệu phù hợp</div>
+  </div>
+  <div class="pg" id="pg"></div>
+</div>
+<!-- DASHBOARD -->
+<div class="pnl" id="pnl-dash">
+  <div class="sg" id="sc"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="gt"><div class="gh">📦 Theo Brand</div>
+      <table><thead><tr><th>Brand</th><th style="text-align:center">Tổng</th><th style="text-align:center">Passed</th><th style="text-align:center">Failed</th><th style="text-align:center">Chưa kiểm</th></tr></thead>
+      <tbody id="brt"></tbody></table></div>
+    <div class="gt"><div class="gh">📅 Theo Tháng</div>
+      <table><thead><tr><th>Tháng</th><th style="text-align:center">Tổng</th><th style="text-align:center">Passed</th><th style="text-align:center">Failed</th><th style="text-align:center">Chưa kiểm</th></tr></thead>
+      <tbody id="mnt"></tbody></table></div>
+  </div>
+  <div class="gt" style="margin-top:16px">
+    <div class="gh" style="color:var(--dg)">⚠️ Cần chú ý (quá hạn hoặc ≤ 7 ngày)</div>
+    <table><thead><tr><th>Số PO</th><th>Brand</th><th>Ngày Final</th><th>Đã kiểm</th><th>Kết quả</th><th>Ghi chú</th></tr></thead>
+    <tbody id="urt"></tbody></table></div>
+</div>
+<!-- FORM MODAL -->
+<div class="ov2" id="fov">
+  <div class="mdl">
+    <h2 id="ftit">➕ Thêm PO mới</h2>
+    <div class="fg2c">
+      <div class="fg2"><label>Tháng *</label><input type="month" id="f_th"></div>
+      <div class="fg2"><label>Số PO *</label><input type="text" id="f_po" placeholder="21405087WSR"></div>
+      <div class="fg2"><label>Brand *</label>
+        <select id="f_br"><option value="">-- Chọn --</option>
+        <option>WS</option><option>CD</option><option>TH</option><option>AT</option><option>WT</option><option>Other</option></select>
+      </div>
+      <div class="fg2"><label>Số HĐ</label><input type="text" id="f_hd" placeholder="126"></div>
+      <div class="fg2"><label>LCL / FCL</label><select id="f_lcl"><option value="">--</option><option value="LCL">LCL</option><option value="FCL">FCL</option></select></div>
+      <div class="fg2"><label>LCL / FCL</label><select id="f_lcl"><option value="">--</option><option value="LCL">LCL</option><option value="FCL">FCL</option></select></div>
+      <div class="fg2"><label>Ship Window Start Date</label><input type="date" id="f_rh"></div>
+      <div class="fg2"><label>Ngày Inline</label><input type="date" id="f_il"></div>
+      <div class="fg2"><label>Ngày Final</label><input type="date" id="f_fn"></div>
+      <div class="fg2"><label>Xưởng kiểm</label>
+        <select id="f_xu"><option value="">--</option><option value="Củ Chi CD8">Củ Chi CD8</option><option value="Củ Chi CD9">Củ Chi CD9</option><option value="Hóc Môn CD10">Hóc Môn CD10</option></select>
+      </div>
+      <div class="fg2"><label>WSI / CD</label>
+        <select id="f_ws"><option value="">--</option><option value="WSI">WSI</option><option value="CD">CD</option></select>
+      </div>
+      <div class="fg2"><label>Đã kiểm</label>
+        <select id="f_dk"><option value="N">N – Chưa</option><option value="Y">Y – Đã kiểm</option></select>
+      </div>
+      <div class="fg2"><label>Kết quả</label>
+        <select id="f_kq"><option value="">-- Chưa có --</option><option value="Passed">Passed ✓</option><option value="Failed">Failed ✗</option></select>
+      </div>
+      <div class="fg2 full"><label>Ghi chú</label><textarea id="f_gc" placeholder="Rework, hold, issues..."></textarea></div>
+    </div>
+    <div class="mdf"><button class="btn bo" onclick="cFrm()">Huỷ</button><button class="btn bs" onclick="savPO()">💾 Lưu</button></div>
+  </div>
+</div>
+<!-- IMPORT MODAL -->
+<div class="ov2" id="iov">
+  <div class="mdl imdl">
+    <h2>📥 Import từ Excel / CSV</h2>
+    <div class="its">
+      <div class="it active" id="it-p" onclick="swIt('p')">📋 Paste từ Excel</div>
+      <div class="it" id="it-f" onclick="swIt('f')">📁 Upload file CSV</div>
+    </div>
+    <div class="ip active" id="ip-p">
+      <div class="hint">
+        <b>Cách dùng:</b> Chọn các hàng trong Excel (không cần header) → <b>Ctrl+C</b> → Paste vào ô bên dưới.<br>
+        <b>Thứ tự cột:</b> <code>Tháng</code> · <code>Số PO</code> · <code>Brand</code> · <code>Số HĐ</code> · <code>LCL/FCL</code> · <code>Ship Window Start Date</code> · <code>Ngày Inline</code> · <code>Ngày Final</code> · <code>Xưởng</code> · <code>WSI/CD</code> · <code>Đã kiểm</code> · <code>Kết quả</code> · <code>Ghi chú</code><br>
+        <b>Định dạng ngày OK:</b> <code>06/07/2026</code> hoặc <code>2026-07-06</code>
+      </div>
+      <textarea id="pa" placeholder="Paste dữ liệu từ Excel vào đây..." oninput="pPaste()"></textarea>
+    </div>
+    <div class="ip" id="ip-f">
+      <div class="hint">
+        Trong Excel: <code>File → Save As → CSV UTF-8 (.csv)</code> rồi upload bên dưới.<br>
+        Hàng đầu tiên có thể là header — tự động nhận ra và bỏ qua.
+      </div>
+      <div class="dz" id="dz" onclick="document.getElementById('cf').click()"
+           ondragover="event.preventDefault();this.classList.add('drag')"
+           ondragleave="this.classList.remove('drag')" ondrop="dropF(event)">
+        <div class="dzi">📄</div>
+        <div style="font-weight:600;margin-bottom:4px">Kéo thả file CSV vào đây</div>
+        <div style="font-size:11px">hoặc click để chọn file</div>
+        <input type="file" id="cf" accept=".csv,.txt" onchange="pickF(event)">
+      </div>
+    </div>
+    <div id="ipv" style="display:none;margin-top:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <b style="font-size:12px;color:var(--p)">Xem trước:</b>
+        <div class="imd">
+          <label><input type="radio" name="im" value="app" checked> Thêm vào hiện có</label>
+          <label><input type="radio" name="im" value="rep"> Xoá hết &amp; thay mới</label>
+        </div>
+      </div>
+      <div class="pvw">
+        <table>
+          <thead><tr><th>Tháng</th><th>Số PO</th><th>Brand</th><th>Số HĐ</th><th>LCL/FCL</th><th>Ship Window</th><th>Inline</th><th>Final</th><th>Xưởng</th><th>WSI/CD</th><th>Đã kiểm</th><th>Kết quả</th><th>Ghi chú</th></tr></thead>
+          <tbody id="pvb"></tbody>
+        </table>
+      </div>
+      <div id="pvm"></div>
+    </div>
+    <div class="mdf">
+      <button class="btn bo" onclick="cImp()">Huỷ</button>
+      <button class="btn bs" id="ibtn" style="display:none" onclick="doImp()">✅ Import <span id="ic">0</span> dòng</button>
+    </div>
+  </div>
+</div>
+<script>
+var db=JSON.parse(localStorage.getItem('inspDB')||'[]');
+if(!db.length){db=[{id:1,thang:'2026-07',soPO:'21405087WSR',brand:'WS',soHD:'126',lclFcl:'',ngayRaHang:'2026-07-06',ngayInline:'',ngayFinal:'2026-07-20',xuong:'WSI',wsi:'WSI',daKiem:'N',ketQua:'',ghiChu:''}];sv();}
+var eid=null,sf='ngayFinal',sd=1,pg=1,IR=[],PG=25;
+function sv(){localStorage.setItem('inspDB',JSON.stringify(db));}
+function swTab(id,el){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.pnl').forEach(p=>p.classList.remove('active'));el.classList.add('active');document.getElementById('pnl-'+id).classList.add('active');if(id==='dash')rdash();}
+function bldF(){
+  var br=[...new Set(db.map(d=>d.brand).filter(Boolean))].sort();
+  var mn=[...new Set(db.map(d=>d.thang).filter(Boolean))].sort();
+  var fb=document.getElementById('fB'),fm=document.getElementById('fM'),cb=fb.value,cm=fm.value;
+  fb.innerHTML='<option value="">Tất cả Brand</option>'+br.map(b=>'<option'+(b===cb?' selected':'')+'>'+b+'</option>').join('');
+  fm.innerHTML='<option value="">Tất cả tháng</option>'+mn.map(m=>'<option value="'+m+'"'+(m===cm?' selected':'')+'>'+fmM(m)+'</option>').join('');
+}
+function fmM(m){if(!m)return'';var p=m.split('-');return'T'+parseInt(p[1])+'/'+p[0];}
+function fd(s){if(!s)return'<span style="color:#ccc">—</span>';var p=s.split('-');return p[2]+'/'+p[1]+'/'+p[0];}
+function xe(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function dd(ds,t){return Math.floor((new Date(ds)-t)/86400000);}
+function clf(){['fS','fB','fM','fR','fD'].forEach(id=>{document.getElementById(id).value='';});go();}
+function flt(){
+  var q=document.getElementById('fS').value.toLowerCase();
+  var br=document.getElementById('fB').value,mn=document.getElementById('fM').value;
+  var rs=document.getElementById('fR').value,dl=document.getElementById('fD').value;
+  var td=new Date();td.setHours(0,0,0,0);
+  return db.filter(d=>{
+    if(q&&!JSON.stringify(d).toLowerCase().includes(q))return false;
+    if(br&&d.brand!==br)return false;
+    if(mn&&d.thang!==mn)return false;
+    if(rs==='Passed'&&d.ketQua!=='Passed')return false;
+    if(rs==='Failed'&&d.ketQua!=='Failed')return false;
+    if(rs==='pend'&&d.ketQua)return false;
+    if(dl&&d.ngayFinal&&d.daKiem!=='Y'){var df=dd(d.ngayFinal,td);if(dl==='ov'&&df>=0)return false;if(dl==='sn'&&(df<0||df>7))return false;}
+    return true;
+  });
+}
+function srt(f){if(sf===f)sd*=-1;else{sf=f;sd=1;}go();}
+function go(){
+  bldF();
+  var rows=flt();
+  rows.sort((a,b)=>{var va=a[sf]||'',vb=b[sf]||'';return va<vb?-sd:va>vb?sd:0;});
+  var tot=rows.length,pgs=Math.max(1,Math.ceil(tot/PG));
+  if(pg>pgs)pg=1;
+  var sl=rows.slice((pg-1)*PG,pg*PG);
+  document.getElementById('rc').textContent=tot+' bản ghi';
+  var tb=document.getElementById('tb'),em=document.getElementById('emp');
+  if(!sl.length){tb.innerHTML='';em.style.display='block';}
+  else{
+    em.style.display='none';
+    var td=new Date();td.setHours(0,0,0,0);
+    tb.innerHTML=sl.map(d=>{
+      var rc='',dc='';
+      if(d.ngayFinal&&d.daKiem!=='Y'&&!d.ketQua){var dif=dd(d.ngayFinal,td);if(dif<0){rc='ro';dc='do';}else if(dif<=7){rc='rw';dc='dw';}}
+      if(d.ketQua==='Passed')rc='rp';if(d.ketQua==='Failed')rc='rf';
+      var kq=d.ketQua==='Passed'?'<span class="bge bgps">✓ Passed</span>':d.ketQua==='Failed'?'<span class="bge bgfl">✗ Failed</span>':'<span class="bge bgpd">Chưa có</span>';
+      var dk=d.daKiem==='Y'?'<span class="bge bgy">Y</span>':'<span class="bge bgn">N</span>';
+      var dtg='';
+      if(d.ngayFinal&&d.daKiem!=='Y'&&!d.ketQua){var dif2=dd(d.ngayFinal,td);if(dif2<0)dtg=' <small style="color:#e74c3c">(quá '+(-dif2)+'ng)</small>';else if(dif2<=7)dtg=' <small style="color:#e67e22">(còn '+dif2+'ng)</small>';}
+      return '<tr class="'+rc+'"><td>'+fmM(d.thang)+'</td><td style="font-weight:600;font-family:monospace">'+xe(d.soPO)+'</td><td><span class="bge bgbr">'+xe(d.brand)+'</span></td><td>'+xe(d.soHD)+'</td><td>'+fd(d.lclFcl)+'</td><td>'+xe(d.lclFcl)+'</td><td>'+fd(d.ngayRaHang)+'</td><td>'+fd(d.ngayInline)+'</td><td class="'+dc+'">'+fd(d.ngayFinal)+dtg+'</td><td>'+xe(d.xuong)+'</td><td>'+xe(d.wsi)+'</td><td>'+dk+'</td><td>'+kq+'</td><td class="nc" title="'+xe(d.ghiChu)+'">'+(xe(d.ghiChu)||'<span style="color:#ccc">—</span>')+'</td><td style="white-space:nowrap"><button class="btn bp bsm" onclick="openFrm('+d.id+')">✏</button> <button class="btn bd2 bsm" onclick="delPO('+d.id+')">🗑</button></td></tr>';
+    }).join('');
+  }
+  rpg(pgs);
+}
+function rpg(pgs){
+  var el=document.getElementById('pg');
+  if(pgs<=1){el.innerHTML='';return;}
+  var h='<button class="pb" onclick="gp('+(pg-1)+')" '+(pg===1?'disabled':'')+'>‹</button>';
+  for(var i=1;i<=pgs;i++){if(i===1||i===pgs||Math.abs(i-pg)<=2)h+='<button class="pb '+(i===pg?'active':'')+'" onclick="gp('+i+')">'+i+'</button>';else if(Math.abs(i-pg)===3)h+='<span style="color:var(--mu);padding:0 3px">…</span>';}
+  h+='<button class="pb" onclick="gp('+(pg+1)+')" '+(pg===pgs?'disabled':'')+'>›</button>';
+  el.innerHTML=h;
+}
+function gp(p){pg=p;go();}
+function rdash(){
+  var td=new Date();td.setHours(0,0,0,0);
+  var n=db.length,ps=db.filter(d=>d.ketQua==='Passed').length,fl=db.filter(d=>d.ketQua==='Failed').length;
+  var pd=db.filter(d=>!d.ketQua).length,ov=db.filter(d=>d.ngayFinal&&d.daKiem!=='Y'&&new Date(d.ngayFinal)<td).length;
+  document.getElementById('sc').innerHTML='<div class="sc"><div class="lb">Tổng PO</div><div class="vl">'+n+'</div></div><div class="sc ps"><div class="lb">Passed</div><div class="vl">'+ps+'</div></div><div class="sc fl"><div class="lb">Failed</div><div class="vl">'+fl+'</div></div><div class="sc pd"><div class="lb">Chưa kiểm</div><div class="vl">'+pd+'</div></div><div class="sc ov"><div class="lb">Quá hạn</div><div class="vl">'+ov+'</div></div>';
+  var brs=[...new Set(db.map(d=>d.brand).filter(Boolean))].sort();
+  document.getElementById('brt').innerHTML=brs.map(b=>{var r=db.filter(d=>d.brand===b),p=r.filter(d=>d.ketQua==='Passed').length,f=r.filter(d=>d.ketQua==='Failed').length;return'<tr><td><span class="bge bgbr">'+b+'</span></td><td style="text-align:center;font-weight:700">'+r.length+'</td><td style="text-align:center;color:var(--ok)">'+p+'</td><td style="text-align:center;color:var(--dg)">'+f+'</td><td style="text-align:center;color:var(--wn)">'+(r.length-p-f)+'</td></tr>';}).join('')||'<tr><td colspan="5" style="text-align:center;color:var(--mu);padding:20px">Chưa có dữ liệu</td></tr>';
+  var mns=[...new Set(db.map(d=>d.thang).filter(Boolean))].sort();
+  document.getElementById('mnt').innerHTML=mns.map(m=>{var r=db.filter(d=>d.thang===m),p=r.filter(d=>d.ketQua==='Passed').length,f=r.filter(d=>d.ketQua==='Failed').length;return'<tr><td>'+fmM(m)+'</td><td style="text-align:center;font-weight:700">'+r.length+'</td><td style="text-align:center;color:var(--ok)">'+p+'</td><td style="text-align:center;color:var(--dg)">'+f+'</td><td style="text-align:center;color:var(--wn)">'+(r.length-p-f)+'</td></tr>';}).join('')||'<tr><td colspan="5" style="text-align:center;color:var(--mu);padding:20px">Chưa có dữ liệu</td></tr>';
+  var urg=db.filter(d=>{if(!d.ngayFinal||d.daKiem==='Y')return false;return dd(d.ngayFinal,td)<=7;}).sort((a,b)=>a.ngayFinal.localeCompare(b.ngayFinal));
+  document.getElementById('urt').innerHTML=urg.map(d=>{var dif=dd(d.ngayFinal,td),cls=dif<0?'do':'dw',tag=dif<0?'(quá '+(-dif)+'ng)':'(còn '+dif+'ng)';return'<tr><td style="font-weight:600;font-family:monospace">'+xe(d.soPO)+'</td><td><span class="bge bgbr">'+xe(d.brand)+'</span></td><td class="'+cls+'">'+fd(d.ngayFinal)+' <small>'+tag+'</small></td><td>'+(d.daKiem==='Y'?'<span class="bge bgy">Y</span>':'<span class="bge bgn">N</span>')+'</td><td>'+(d.ketQua?'<span class="bge bg'+d.ketQua.toLowerCase()+'">'+d.ketQua+'</span>':'<span class="bge bgpd">Chưa có</span>')+'</td><td style="color:var(--mu);font-style:italic">'+(xe(d.ghiChu)||'—')+'</td></tr>';}).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--ok);padding:20px">✓ Không có PO khẩn cấp</td></tr>';
+}
+function openFrm(id){
+  eid=id||null;
+  var flds=['th','po','br','hd','dh','rh','il','fn','xu','ws','dk','kq','gc'];
+  var keys=['thang','soPO','brand','soHD','lclFcl','ngayRaHang','ngayInline','ngayFinal','xuong','wsi','daKiem','ketQua','ghiChu'];
+  if(id){var d=db.find(r=>r.id===id);document.getElementById('ftit').textContent='✏️ Sửa PO: '+d.soPO;flds.forEach((f,i)=>{var el=document.getElementById('f_'+f);if(el)el.value=d[keys[i]]||'';});}
+  else{document.getElementById('ftit').textContent='➕ Thêm PO mới';flds.forEach((f,i)=>{var el=document.getElementById('f_'+f);if(el)el.value=keys[i]==='daKiem'?'N':'';});}
+  document.getElementById('fov').classList.add('open');
+}
+function cFrm(){document.getElementById('fov').classList.remove('open');eid=null;}
+function savPO(){
+  var po=document.getElementById('f_po').value.trim();
+  var br=document.getElementById('f_br').value;
+  var th=document.getElementById('f_th').value;
+  if(!po||!br||!th){alert('Vui lòng điền Tháng, Số PO và Brand.');return;}
+  var rec={thang:th,soPO:po,brand:br,soHD:document.getElementById('f_hd').value.trim(),lclFcl:document.getElementById('f_lcl').value,lclFcl:document.getElementById('f_lcl').value,ngayRaHang:document.getElementById('f_rh').value,ngayInline:document.getElementById('f_il').value,ngayFinal:document.getElementById('f_fn').value,xuong:document.getElementById('f_xu').value,wsi:document.getElementById('f_ws').value,daKiem:document.getElementById('f_dk').value,ketQua:document.getElementById('f_kq').value,ghiChu:document.getElementById('f_gc').value.trim()};
+  if(eid){var i=db.findIndex(r=>r.id===eid);db[i]=Object.assign({},db[i],rec);}else{rec.id=Date.now();db.push(rec);}
+  sv();cFrm();go();
+}
+function delPO(id){var d=db.find(r=>r.id===id);if(!confirm('Xoá PO '+d.soPO+'?'))return;db=db.filter(r=>r.id!==id);sv();go();}
+function exportCSV(){
+  var rows=flt();
+  var hdr='Tháng,Số PO,Brand,Số HĐ,LCL/FCL,Ship Window Start Date,Ngày Inline,Ngày Final,Xưởng kiểm,WSI/CD,Đã kiểm,Kết quả,Ghi chú\n';
+  var body=rows.map(d=>[fmM(d.thang),d.soPO,d.brand,d.soHD,d.lclFcl,d.ngayRaHang,d.ngayInline,d.ngayFinal,d.xuong,d.wsi,d.daKiem,d.ketQua,'"'+(d.ghiChu||'').replace(/"/g,'""')+'"'].join(',')).join('\n');
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['﻿'+hdr+body],{type:'text/csv;charset=utf-8'}));
+  a.download='inspection_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
+}
+/* IMPORT */
+function openImp(){document.getElementById('iov').classList.add('open');document.getElementById('pa').value='';document.getElementById('ipv').style.display='none';document.getElementById('ibtn').style.display='none';IR=[];}
+function cImp(){document.getElementById('iov').classList.remove('open');}
+function swIt(t){['p','f'].forEach(k=>{document.getElementById('it-'+k).classList.toggle('active',k===t);document.getElementById('ip-'+k).classList.toggle('active',k===t);});document.getElementById('ipv').style.display='none';document.getElementById('ibtn').style.display='none';IR=[];}
+function pDate(s){
+  if(!s||!s.trim())return'';s=s.trim();
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;
+  var a=/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s);
+  if(a)return a[3]+'-'+a[2].padStart(2,'0')+'-'+a[1].padStart(2,'0');
+  var b=/^(\d{1,2})-(\d{1,2})-(\d{4})$/.exec(s);
+  if(b)return b[3]+'-'+b[2].padStart(2,'0')+'-'+b[1].padStart(2,'0');
+  var dt=new Date(s);if(!isNaN(dt))return dt.toISOString().slice(0,10);
+  return s;
+}
+function pMon(s){
+  if(!s)return'';s=s.trim();
+  if(/^\d{4}-\d{2}$/.test(s))return s;
+  var a=/^T?(\d{1,2})\/(\d{4})$/.exec(s);if(a)return a[2]+'-'+a[1].padStart(2,'0');
+  var b=/^(\d{4})\/(\d{2})$/.exec(s);if(b)return b[1]+'-'+b[2];
+  var c=/^(\d{1,2})\/\d{1,2}\/(\d{4})$/.exec(s);if(c)return c[2]+'-'+c[1].padStart(2,'0');
+  return s;
+}
+function nKQ(s){var v=(s||'').trim().toLowerCase();if(['passed','pass','ok','p','✓'].includes(v))return'Passed';if(['failed','fail','f','x','✗'].includes(v))return'Failed';return'';}
+function r2obj(c){return{id:Date.now()+Math.random(),thang:pMon(c[0]||''),soPO:(c[1]||'').trim(),brand:(c[2]||'').trim(),soHD:(c[3]||'').trim(),lclFcl:pDate(c[4]||''),ngayRaHang:pDate(c[5]||''),ngayInline:pDate(c[6]||''),ngayFinal:pDate(c[7]||''),xuong:(c[8]||'').trim(),wsi:(c[9]||'').trim(),daKiem:(c[10]||'N').trim().toUpperCase()==='Y'?'Y':'N',ketQua:nKQ(c[11]||''),ghiChu:(c[12]||'').trim()};}
+function isHdr(s){var l=s.toLowerCase();return l.includes('po')||l.includes('brand')||l.includes('tháng')||l.includes('thang')||l.includes('số hđ');}
+function pTSV(raw){var ln=raw.trim().split('\n').filter(l=>l.trim());if(!ln.length)return[];var d=isHdr(ln[0])?ln.slice(1):ln;return d.map(l=>r2obj(l.split('\t').map(c=>c.trim().replace(/^"|"$/g,'')))).filter(r=>r.soPO);}
+function pCSVr(line){var r=[],c='',q=false;for(var i=0;i<line.length;i++){var ch=line[i];if(ch==='"'){if(q&&line[i+1]==='"'){c+='"';i++;}else q=!q;}else if(ch===','&&!q){r.push(c.trim());c='';}else c+=ch;}r.push(c.trim());return r;}
+function pCSV(raw){var ln=raw.trim().split('\n').filter(l=>l.trim());if(!ln.length)return[];var d=isHdr(ln[0])?ln.slice(1):ln;return d.map(l=>r2obj(pCSVr(l))).filter(r=>r.soPO);}
+function showPV(rows){
+  IR=rows;
+  var bd=document.getElementById('pvb'),mg=document.getElementById('pvm'),btn=document.getElementById('ibtn');
+  document.getElementById('ipv').style.display='block';
+  if(!rows.length){bd.innerHTML='';mg.innerHTML='<div class="per">⚠ Không đọc được dữ liệu. Kiểm tra lại định dạng.</div>';btn.style.display='none';return;}
+  bd.innerHTML=rows.slice(0,50).map(r=>'<tr><td>'+(r.thang?fmM(r.thang):'<span style="color:#e74c3c">?</span>')+'</td><td style="font-family:monospace;font-weight:600">'+xe(r.soPO)+'</td><td>'+xe(r.brand)+'</td><td>'+xe(r.soHD)+'</td><td>'+fd(r.lclFcl)+'</td><td>'+xe(r.lclFcl)+'</td><td>'+fd(r.ngayRaHang)+'</td><td>'+fd(r.ngayInline)+'</td><td>'+fd(r.ngayFinal)+'</td><td>'+xe(r.xuong)+'</td><td>'+xe(r.wsi)+'</td><td>'+(r.daKiem==='Y'?'<span class="bge bgy">Y</span>':'<span class="bge bgn">N</span>')+'</td><td>'+(r.ketQua?'<span class="bge bg'+r.ketQua.toLowerCase()+'">'+r.ketQua+'</span>':'<span class="bge bgpd">—</span>')+'</td><td style="color:var(--mu)">'+xe(r.ghiChu)+'</td></tr>').join('');
+  mg.innerHTML='<div class="pok">✓ Đọc được '+rows.length+' dòng hợp lệ'+(rows.length>50?' (hiển thị 50 đầu)':'')+'</div>';
+  document.getElementById('ic').textContent=rows.length;
+  btn.style.display='inline-block';
+}
+function pPaste(){var raw=document.getElementById('pa').value;if(!raw.trim()){document.getElementById('ipv').style.display='none';return;}showPV(pTSV(raw));}
+function pickF(e){var f=e.target.files[0];if(f)rdF(f);}
+function dropF(e){e.preventDefault();document.getElementById('dz').classList.remove('drag');var f=e.dataTransfer.files[0];if(f)rdF(f);}
+function rdF(f){var r=new FileReader();r.onload=function(e){var t=e.target.result;if(t.charCodeAt(0)===0xFEFF)t=t.slice(1);showPV(pCSV(t));};r.readAsText(f,'UTF-8');}
+function doImp(){
+  if(!IR.length)return;
+  var mode=document.querySelector('input[name="im"]:checked').value;
+  if(mode==='rep'){if(!confirm('Xoá toàn bộ '+db.length+' bản ghi hiện có và thay bằng '+IR.length+' dòng mới?'))return;db=IR;}
+  else{var ex=new Set(db.map(d=>d.soPO.trim().toLowerCase()));var nw=IR.filter(r=>!ex.has(r.soPO.trim().toLowerCase()));var sk=IR.length-nw.length;if(sk>0&&!confirm(sk+' PO đã tồn tại sẽ bị bỏ qua. Import '+nw.length+' dòng mới?'))return;db=[...db,...nw];}
+  sv();cImp();go();alert('✅ Import thành công!');
+}
+document.getElementById('fov').addEventListener('click',function(e){if(e.target===this)cFrm();});
+document.getElementById('iov').addEventListener('click',function(e){if(e.target===this)cImp();});
+go();
+</script>
+</body>
+</html>
