@@ -730,12 +730,14 @@ function importFile(event) {
 function excelDateToString(val) {
   if (!val) return '';
   if (val instanceof Date) {
-    // Format as DD/MM/YYYY
-    const d = val.getDate().toString().padStart(2,'0');
-    const m = (val.getMonth()+1).toString().padStart(2,'0');
-    const y = val.getFullYear();
+    // SheetJS trả về UTC midnight date. Cộng 12h để tránh lệch ngày ở mọi timezone.
+    const safe = new Date(val.getTime() + 12 * 60 * 60 * 1000);
+    const d = safe.getUTCDate().toString().padStart(2,'0');
+    const m = (safe.getUTCMonth()+1).toString().padStart(2,'0');
+    const y = safe.getUTCFullYear();
     return `${d}/${m}/${y}`;
   }
+  // Nếu đã là string (text cell trong Excel), trả về nguyên
   return String(val).trim();
 }
 
