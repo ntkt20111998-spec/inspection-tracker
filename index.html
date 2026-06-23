@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cat Dang_WSI Inspection Schedule Tracker</title>
+<title>Cat Dang Inspection Schedule Tracker</title>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
@@ -11,7 +11,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#222;min-height:100vh}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#222;height:100vh;overflow:hidden}
+#mainApp{display:flex;flex-direction:column;height:100vh;overflow:hidden}
 
 /* ===== LOGIN ===== */
 #loginScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#1a3a5c 0%,#2d6a9f 100%)}
@@ -62,8 +63,8 @@ header p{font-size:12px;opacity:.85;margin-top:2px}
 .btn-export:hover{background:#c05621}
 
 /* ===== TABLE ===== */
-.table-wrap{overflow-x:auto;padding:16px 24px;padding-bottom:40px}
-table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.07);font-size:13px}
+.table-wrap{overflow-x:auto;overflow-y:auto;flex:1;padding:16px 24px 40px}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.07);font-size:13px}
 th{background:#1a3a5c;color:#fff;padding:11px 10px;text-align:left;font-weight:600;white-space:nowrap;position:sticky;top:0;z-index:5;box-shadow:0 2px 0 rgba(0,0,0,.15)}
 th.sortable{cursor:pointer;user-select:none}
 th.sortable:hover{background:#253f5e}
@@ -141,8 +142,8 @@ tr.row-urgent:hover td{background:#feebc8}
 <div id="loginScreen" style="display:none">
   <div class="login-card">
     <div class="login-logo">🏭</div>
-    <h1>Cat Dang_WSI<br>Inspection Schedule Tracker</h1>
-    <p>Cat Dang Handicraft — WS Customer Group</p>
+    <h1>Cat Dang<br>Inspection Schedule Tracker</h1>
+    <p>Cat Dang Handicraft</p>
     <button class="btn-google" onclick="signInGoogle()">
       <svg viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.29-8.16 2.29-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
       Sign in with Google
@@ -155,8 +156,8 @@ tr.row-urgent:hover td{background:#feebc8}
 <div id="mainApp" style="display:none">
   <header>
     <div>
-      <h1>Cat Dang_WSI Inspection Schedule Tracker</h1>
-      <p>Cat Dang Handicraft — WS Customer Group</p>
+      <h1>Cat Dang Inspection Schedule Tracker</h1>
+      <p>Cat Dang Handicraft</p>
     </div>
     <div class="user-area">
       <span id="userBadge" class="badge"></span>
@@ -216,7 +217,7 @@ tr.row-urgent:hover td{background:#feebc8}
           <th class="sortable" onclick="sortTable('ngayInline')">Ngày Inline <span class="sort-icon" id="si-ngayInline">⇅</span></th>
           <th class="sortable" onclick="sortTable('ngayFinal')">Ngày Final <span class="sort-icon" id="si-ngayFinal">⇅</span></th>
           <th class="sortable" onclick="sortTable('xuong')">Xưởng kiểm <span class="sort-icon" id="si-xuong">⇅</span></th>
-          <th class="sortable" onclick="sortTable('wsi')">WSI/CD <span class="sort-icon" id="si-wsi">⇅</span></th>
+          <th class="sortable" onclick="sortTable('wsi')">Khách / CD <span class="sort-icon" id="si-wsi">⇅</span></th>
           <th class="sortable" onclick="sortTable('daKiem')">Đã Kiểm <span class="sort-icon" id="si-daKiem">⇅</span></th>
           <th class="sortable" onclick="sortTable('ketQua')">Kết Quả <span class="sort-icon" id="si-ketQua">⇅</span></th>
           <th>Ghi Chú</th>
@@ -287,7 +288,7 @@ tr.row-urgent:hover td{background:#feebc8}
             </select>
           </div>
           <div class="form-group">
-            <label>WSI/CD</label>
+            <label>Khách / CD</label>
             <select id="f_wsi">
               <option value="">-- Chọn --</option>
               <option value="WSI">WSI</option>
@@ -358,7 +359,7 @@ tr.row-urgent:hover td{background:#feebc8}
 <div id="toast"></div>
 
 <script>
-// ===== EMAILJS CONFIG — cập nhật sau khi setup EmailJS =====
+// ===== EMAILJS CONFIG =====
 const EMAILJS_PUBLIC_KEY  = 'cp-dy4McFyiHUcrtP';
 const EMAILJS_SERVICE_ID  = 'service_zg7ofvf';
 const EMAILJS_TEMPLATE_ID = 'template_0uubl7i';
@@ -385,7 +386,7 @@ let allData = [];
 let editingId = null;
 let unsubscribe = null;
 let sortField = null;
-let sortDir = 1; // 1=asc, -1=desc
+let sortDir = 1;
 
 // ===== AUTH =====
 auth.onAuthStateChanged(async (user) => {
@@ -434,7 +435,6 @@ function signOutUser() {
 }
 
 function initApp() {
-  // User info
   const photoEl = document.getElementById('userPhoto');
   if (currentUser.photoURL) {
     photoEl.src = currentUser.photoURL;
@@ -461,15 +461,15 @@ function initApp() {
   subscribeData();
 
   if (currentRole === 'admin') {
-    checkURLAction(); // Xử lý link approve/reject từ email
+    checkURLAction();
   } else if (currentRole === 'viewer') {
-    loadMyRequestStatus(); // Hiển thị trạng thái yêu cầu của viewer
+    loadMyRequestStatus();
   }
 }
 
 function showScreen(s) {
   document.getElementById('loginScreen').style.display = s === 'login' ? 'flex' : 'none';
-  document.getElementById('mainApp').style.display = s === 'app' ? 'block' : 'none';
+  document.getElementById('mainApp').style.display = s === 'app' ? 'flex' : 'none';
 }
 
 // ===== FIRESTORE =====
@@ -481,7 +481,6 @@ function subscribeData() {
       allData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       populateFilterOptions();
       applyFilters();
-      updateSummary(allData);
     }, err => {
       console.error('Snapshot error:', err);
       showToast('Lỗi tải dữ liệu: ' + err.message, 4000);
@@ -491,14 +490,11 @@ function subscribeData() {
 // ===== RENDER =====
 function fmtDate(d) {
   if (!d) return '';
-  // YYYY-MM-DD → DD/MM/YYYY
   const ymd = d.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (ymd) return `${ymd[3]}/${ymd[2]}/${ymd[1]}`;
-  // DD/MM/YYYY → hiển thị nguyên (dữ liệu cũ)
   return d;
 }
 
-// Chuyển về YYYY-MM-DD cho input[type=date] trong edit form
 function toInputDate(d) {
   if (!d) return '';
   if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
@@ -508,7 +504,6 @@ function toInputDate(d) {
 }
 
 function parseDate(s) {
-  // Handles DD/MM/YYYY (from Excel import) and YYYY-MM-DD (from date input)
   if (!s) return null;
   const dmy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (dmy) return new Date(+dmy[3], +dmy[2]-1, +dmy[1]);
@@ -573,7 +568,6 @@ function sortTable(field) {
     sortField = field;
     sortDir = 1;
   }
-  // Update header icons
   document.querySelectorAll('.sort-icon').forEach(el => el.textContent = '⇅');
   document.querySelectorAll('th.sortable').forEach(el => {
     el.classList.remove('sort-asc','sort-desc');
@@ -604,14 +598,12 @@ function applyFilters() {
     return true;
   });
 
-  // Apply sort
   if (sortField) {
     const dateFields = ['ngayRaHang','ngayInline','ngayFinal'];
     filtered.sort((a, b) => {
       let va = a[sortField] || '';
       let vb = b[sortField] || '';
       if (dateFields.includes(sortField)) {
-        // Parse DD/MM/YYYY or YYYY-MM-DD
         va = parseDateForSort(va);
         vb = parseDateForSort(vb);
         return (va - vb) * sortDir;
@@ -621,6 +613,7 @@ function applyFilters() {
   }
 
   renderTable(filtered);
+  updateSummary(filtered);
 }
 
 function parseDateForSort(s) {
@@ -752,7 +745,7 @@ function exportCSV() {
   const blob = new Blob(['﻿' + headers + rows], {type:'text/csv;charset=utf-8;'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'wsi_inspection_tracker_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.download = 'inspection_tracker_' + new Date().toISOString().slice(0,10) + '.csv';
   a.click();
   showToast('📊 Đã export CSV');
 }
@@ -765,22 +758,17 @@ function importFile(event) {
   const ext = file.name.split('.').pop().toLowerCase();
 
   if (ext === 'xlsx' || ext === 'xls') {
-    // Parse Excel binary with SheetJS
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
         const wb = XLSX.read(e.target.result, { type: 'array' });
         const ws = wb.Sheets[wb.SheetNames[0]];
-        // raw:false → SheetJS trả về giá trị theo định dạng ô (không convert sang JS Date)
         const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
-
-        // Auto-detect header row: find first row where col[1] looks like a PO or is header text
-        let startRow = 1; // default: skip row 0
+        let startRow = 1;
         for (let i = 0; i < Math.min(rows.length, 5); i++) {
           const v = String(rows[i][1] || '').trim().toLowerCase();
           if (v === 'số po' || v === 'so po' || v === 'po') { startRow = i + 1; break; }
         }
-
         await processRows(rows.slice(startRow));
       } catch(err) {
         showToast('❌ Không đọc được file Excel: ' + err.message, 5000);
@@ -788,7 +776,6 @@ function importFile(event) {
     };
     reader.readAsArrayBuffer(file);
   } else {
-    // CSV / TSV / TXT
     const reader = new FileReader();
     reader.onload = async (e) => {
       const text = e.target.result;
@@ -807,13 +794,10 @@ function importFile(event) {
 }
 
 function excelDateToString(val) {
-  // Với raw:false, SheetJS luôn trả về string. Chuẩn hóa về YYYY-MM-DD để lưu nhất quán.
   if (!val) return '';
   const s = String(val).trim();
   if (!s) return '';
-  // Đã là YYYY-MM-DD → giữ nguyên
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-  // DD/MM/YYYY hoặc D/M/YYYY → chuyển sang YYYY-MM-DD
   const dmy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (dmy) return `${dmy[3]}-${dmy[2].padStart(2,'0')}-${dmy[1].padStart(2,'0')}`;
   return s;
@@ -843,7 +827,6 @@ async function processRows(rows) {
     };
     const existing = allData.find(r => r.soPO === soPO);
     if (existing) {
-      // Admin: upsert tất cả | Editor: chỉ update record của mình, skip của người khác
       if (currentRole === 'admin' || existing.createdBy === currentUser?.uid) {
         batch.update(db.collection('inspections').doc(existing.id), fields);
         updated++;
@@ -879,30 +862,22 @@ async function processRows(rows) {
 function downloadTemplate() {
   const wb = XLSX.utils.book_new();
   const ws = {};
-
-  // Đổi ngày serial Excel: days from Dec 30, 1899
   const serial = (y, m, d) => Math.floor(
     (new Date(Date.UTC(y, m-1, d)) - new Date(Date.UTC(1899, 11, 30))) / 86400000
   );
-
   const headers = [
     'Tháng','Số PO','Brand','Số HĐ','LCL/FCL',
     'Ship Window Start Date','Ngày Inline','Ngày Final',
     'Xưởng kiểm','WSI/CD','Đã Kiểm (Y/N)','Kết Quả (Passed/Failed)','Ghi Chú'
   ];
-
-  // Row 0: headers
   headers.forEach((h, c) => {
     ws[XLSX.utils.encode_cell({r:0, c})] = {v: h, t: 's'};
   });
-
-  // Sample rows — date cells dùng serial number + format DD/MM/YYYY
   const DATE_FMT = 'DD/MM/YYYY';
   const samples = [
     ['7/2026','21405087WSR','WS','126','FCL', serial(2026,6,7), serial(2026,6,14), serial(2026,6,21), 'Củ Chi CD8','WSI','N','Passed',''],
     ['7/2026','21405088WSR','WS','127','LCL', serial(2026,6,10), serial(2026,6,17), serial(2026,6,24), 'Củ Chi CD9','CD','N','',''],
   ];
-
   samples.forEach((row, ri) => {
     row.forEach((v, c) => {
       const isDate = c >= 5 && c <= 7;
@@ -911,31 +886,27 @@ function downloadTemplate() {
         : {v: v === '' ? '' : String(v), t: 's'};
     });
   });
-
   ws['!ref'] = XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:2,c:12}});
   ws['!cols'] = [
     {wch:8},{wch:16},{wch:8},{wch:8},{wch:8},
     {wch:22},{wch:16},{wch:16},{wch:14},{wch:8},{wch:12},{wch:20},{wch:20}
   ];
-
   XLSX.utils.book_append_sheet(wb, ws, 'Import Data');
-  XLSX.writeFile(wb, 'WS_Inspection_Template.xlsx');
+  XLSX.writeFile(wb, 'Inspection_Template.xlsx');
   showToast('📋 Đã tải file template');
 }
 
-// ===== ACCESS REQUEST (Viewer → yêu cầu Editor) =====
+// ===== ACCESS REQUEST =====
 let myRequestStatus = null;
 
 async function loadMyRequestStatus() {
   if (!currentUser) return;
   try {
-    // Không dùng orderBy để tránh cần composite index
     const snap = await db.collection('accessRequests')
       .where('uid', '==', currentUser.uid)
       .where('status', '==', 'pending').limit(1).get();
     if (!snap.empty) { myRequestStatus = 'pending'; }
     else {
-      // Check xem có rejected không
       const rej = await db.collection('accessRequests')
         .where('uid', '==', currentUser.uid)
         .where('status', '==', 'rejected').limit(1).get();
@@ -966,18 +937,15 @@ function openRequestModal() {
 async function submitAccessRequest() {
   if (!currentUser) return;
   const note = document.getElementById('requestNote').value.trim();
-
   try {
-    // Kiểm tra pending request trùng (trong try-catch để không block nếu rules chưa cập nhật)
     try {
       const existing = await db.collection('accessRequests')
         .where('uid', '==', currentUser.uid).where('status', '==', 'pending').limit(1).get();
       if (!existing.empty) {
         showToast('⚠️ Bạn đã có yêu cầu đang chờ duyệt', 3000); return;
       }
-    } catch(e) { /* tiếp tục nếu không đọc được (rules chưa set) */ }
+    } catch(e) {}
 
-    // Lưu vào Firestore
     const ref = await db.collection('accessRequests').add({
       uid: currentUser.uid,
       email: currentUser.email,
@@ -987,7 +955,6 @@ async function submitAccessRequest() {
       requestedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
-    // Gửi email qua EmailJS
     try {
       emailjs.init(EMAILJS_PUBLIC_KEY);
       const now = new Date().toLocaleString('vi-VN', {timeZone:'Asia/Ho_Chi_Minh'});
@@ -1002,7 +969,6 @@ async function submitAccessRequest() {
       });
       showToast('✅ Đã gửi yêu cầu! Admin sẽ nhận email để duyệt.');
     } catch(emailErr) {
-      // Lưu Firestore OK nhưng email lỗi — vẫn chấp nhận
       showToast('✅ Đã ghi nhận yêu cầu (lỗi gửi email: ' + emailErr.text + ')');
     }
 
@@ -1019,30 +985,24 @@ async function submitAccessRequest() {
   }
 }
 
-// ===== DEEP LINK APPROVAL (admin click link trong email) =====
+// ===== DEEP LINK APPROVAL =====
 async function checkURLAction() {
   const params = new URLSearchParams(window.location.search);
   const action = params.get('action');
   const uid    = params.get('uid');
   const reqId  = params.get('reqId');
   if (!action || !uid || currentRole !== 'admin') return;
-
-  // Xóa params khỏi URL (gọn hơn)
   window.history.replaceState({}, '', window.location.pathname);
-
-  // Lấy tên người yêu cầu
   let name = uid;
   try {
     const doc = await db.collection('users').doc(uid).get();
     if (doc.exists) name = doc.data().displayName || doc.data().email || uid;
   } catch(e) {}
-
   const modal   = document.getElementById('actionModal');
   const title   = document.getElementById('actionModalTitle');
   const body    = document.getElementById('actionModalBody');
   const footer  = document.getElementById('actionModalFooter');
   modal.style.display = 'flex';
-
   if (action === 'approve') {
     title.textContent = '✅ Duyệt quyền Editor';
     body.innerHTML = `Duyệt quyền <b>Editor</b> cho <b>${name}</b>?<br><small style="color:#718096">Họ sẽ có thể thêm/sửa/xóa PO do mình tạo.</small>`;
