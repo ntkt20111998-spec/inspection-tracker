@@ -73,11 +73,12 @@ th.sort-asc,th.sort-desc{background:#2d5280}
 td{padding:9px 10px;border-bottom:1px solid #e2e8f0;vertical-align:middle}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:#f7fafc}
-tr.row-overdue td{background:#fff5f5}
-tr.row-urgent td{background:#fffaf0}
-tr.row-warning td{background:#fffff0}
-tr.row-overdue:hover td{background:#fed7d7}
-tr.row-urgent:hover td{background:#feebc8}
+tr.row-overdue td{background:#fed7d7}
+tr.row-urgent td{background:#feebc8}
+tr.row-warning td{background:#fefcbf}
+tr.row-overdue:hover td{background:#fc8181}
+tr.row-urgent:hover td{background:#fbd38d}
+tr.row-warning:hover td{background:#f6e05e}
 .badge-pass{background:#c6f6d5;color:#276749;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:700}
 .badge-fail{background:#fed7d7;color:#9b2c2c;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:700}
 .btn-sm{padding:4px 10px;border:none;border-radius:4px;font-size:11px;cursor:pointer;font-weight:600;transition:background .15s}
@@ -91,9 +92,9 @@ tr.row-urgent:hover td{background:#feebc8}
 .legend{display:flex;gap:16px;padding:0 24px 12px;flex-wrap:wrap}
 .legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:#666}
 .legend-dot{width:12px;height:12px;border-radius:3px}
-.dot-overdue{background:#fed7d7}
-.dot-urgent{background:#feebc8}
-.dot-warning{background:#fefcbf}
+.dot-overdue{background:#fc8181}
+.dot-urgent{background:#f6ad55}
+.dot-warning{background:#f6e05e}
 
 /* ===== MODAL ===== */
 #modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;align-items:center;justify-content:center;padding:16px}
@@ -359,7 +360,7 @@ tr.row-urgent:hover td{background:#feebc8}
 <div id="toast"></div>
 
 <script>
-// ===== EMAILJS CONFIG =====
+// ===== EMAILJS CONFIG — cập nhật sau khi setup EmailJS =====
 const EMAILJS_PUBLIC_KEY  = 'cp-dy4McFyiHUcrtP';
 const EMAILJS_SERVICE_ID  = 'service_zg7ofvf';
 const EMAILJS_TEMPLATE_ID = 'template_0uubl7i';
@@ -385,7 +386,7 @@ let currentRole = 'viewer';
 let allData = [];
 let editingId = null;
 let unsubscribe = null;
-let sortField = null;
+let sortField = 'ngayFinal';
 let sortDir = 1;
 
 // ===== AUTH =====
@@ -435,6 +436,7 @@ function signOutUser() {
 }
 
 function initApp() {
+  // User info
   const photoEl = document.getElementById('userPhoto');
   if (currentUser.photoURL) {
     photoEl.src = currentUser.photoURL;
@@ -458,12 +460,15 @@ function initApp() {
   }
 
   showScreen('app');
+  // Hiển thị icon sort mặc định (ngayFinal ↑)
+  const defIcon = document.getElementById('si-ngayFinal');
+  if (defIcon) { defIcon.textContent = '↑'; defIcon.closest('th').classList.add('sort-asc'); }
   subscribeData();
 
   if (currentRole === 'admin') {
-    checkURLAction();
+    checkURLAction(); // Xử lý link approve/reject từ email
   } else if (currentRole === 'viewer') {
-    loadMyRequestStatus();
+    loadMyRequestStatus(); // Hiển thị trạng thái yêu cầu của viewer
   }
 }
 
@@ -480,7 +485,7 @@ function subscribeData() {
     .onSnapshot((snapshot) => {
       allData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       populateFilterOptions();
-      applyFilters();
+      applyFilters(); // gọi updateSummary(filtered) nội bộ
     }, err => {
       console.error('Snapshot error:', err);
       showToast('Lỗi tải dữ liệu: ' + err.message, 4000);
@@ -490,11 +495,14 @@ function subscribeData() {
 // ===== RENDER =====
 function fmtDate(d) {
   if (!d) return '';
+  // YYYY-MM-DD → DD/MM/YYYY
   const ymd = d.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (ymd) return `${ymd[3]}/${ymd[2]}/${ymd[1]}`;
+  // DD/MM/YYYY → hiển thị nguyên (dữ liệu cũ)
   return d;
 }
 
+// Chuyển về YYYY-MM-DD cho input[type=date] trong edit form
 function toInputDate(d) {
   if (!d) return '';
   if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
@@ -504,6 +512,7 @@ function toInputDate(d) {
 }
 
 function parseDate(s) {
+  // Handles DD/MM/YYYY (from Excel import) and YYYY-MM-DD (from date input)
   if (!s) return null;
   const dmy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (dmy) return new Date(+dmy[3], +dmy[2]-1, +dmy[1]);
@@ -568,6 +577,7 @@ function sortTable(field) {
     sortField = field;
     sortDir = 1;
   }
+  // Update header icons
   document.querySelectorAll('.sort-icon').forEach(el => el.textContent = '⇅');
   document.querySelectorAll('th.sortable').forEach(el => {
     el.classList.remove('sort-asc','sort-desc');
@@ -598,12 +608,14 @@ function applyFilters() {
     return true;
   });
 
+  // Apply sort
   if (sortField) {
     const dateFields = ['ngayRaHang','ngayInline','ngayFinal'];
     filtered.sort((a, b) => {
       let va = a[sortField] || '';
       let vb = b[sortField] || '';
       if (dateFields.includes(sortField)) {
+        // Parse DD/MM/YYYY or YYYY-MM-DD
         va = parseDateForSort(va);
         vb = parseDateForSort(vb);
         return (va - vb) * sortDir;
@@ -745,7 +757,7 @@ function exportCSV() {
   const blob = new Blob(['﻿' + headers + rows], {type:'text/csv;charset=utf-8;'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'inspection_tracker_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.download = 'wsi_inspection_tracker_' + new Date().toISOString().slice(0,10) + '.csv';
   a.click();
   showToast('📊 Đã export CSV');
 }
@@ -758,17 +770,22 @@ function importFile(event) {
   const ext = file.name.split('.').pop().toLowerCase();
 
   if (ext === 'xlsx' || ext === 'xls') {
+    // Parse Excel binary with SheetJS
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
         const wb = XLSX.read(e.target.result, { type: 'array' });
         const ws = wb.Sheets[wb.SheetNames[0]];
+        // raw:false → SheetJS trả về giá trị theo định dạng ô (không convert sang JS Date)
         const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
-        let startRow = 1;
+
+        // Auto-detect header row: find first row where col[1] looks like a PO or is header text
+        let startRow = 1; // default: skip row 0
         for (let i = 0; i < Math.min(rows.length, 5); i++) {
           const v = String(rows[i][1] || '').trim().toLowerCase();
           if (v === 'số po' || v === 'so po' || v === 'po') { startRow = i + 1; break; }
         }
+
         await processRows(rows.slice(startRow));
       } catch(err) {
         showToast('❌ Không đọc được file Excel: ' + err.message, 5000);
@@ -776,6 +793,7 @@ function importFile(event) {
     };
     reader.readAsArrayBuffer(file);
   } else {
+    // CSV / TSV / TXT
     const reader = new FileReader();
     reader.onload = async (e) => {
       const text = e.target.result;
@@ -794,10 +812,13 @@ function importFile(event) {
 }
 
 function excelDateToString(val) {
+  // Với raw:false, SheetJS luôn trả về string. Chuẩn hóa về YYYY-MM-DD để lưu nhất quán.
   if (!val) return '';
   const s = String(val).trim();
   if (!s) return '';
+  // Đã là YYYY-MM-DD → giữ nguyên
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  // DD/MM/YYYY hoặc D/M/YYYY → chuyển sang YYYY-MM-DD
   const dmy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (dmy) return `${dmy[3]}-${dmy[2].padStart(2,'0')}-${dmy[1].padStart(2,'0')}`;
   return s;
@@ -827,6 +848,7 @@ async function processRows(rows) {
     };
     const existing = allData.find(r => r.soPO === soPO);
     if (existing) {
+      // Admin: upsert tất cả | Editor: chỉ update record của mình, skip của người khác
       if (currentRole === 'admin' || existing.createdBy === currentUser?.uid) {
         batch.update(db.collection('inspections').doc(existing.id), fields);
         updated++;
@@ -862,22 +884,30 @@ async function processRows(rows) {
 function downloadTemplate() {
   const wb = XLSX.utils.book_new();
   const ws = {};
+
+  // Đổi ngày serial Excel: days from Dec 30, 1899
   const serial = (y, m, d) => Math.floor(
     (new Date(Date.UTC(y, m-1, d)) - new Date(Date.UTC(1899, 11, 30))) / 86400000
   );
+
   const headers = [
     'Tháng','Số PO','Brand','Số HĐ','LCL/FCL',
     'Ship Window Start Date','Ngày Inline','Ngày Final',
     'Xưởng kiểm','WSI/CD','Đã Kiểm (Y/N)','Kết Quả (Passed/Failed)','Ghi Chú'
   ];
+
+  // Row 0: headers
   headers.forEach((h, c) => {
     ws[XLSX.utils.encode_cell({r:0, c})] = {v: h, t: 's'};
   });
+
+  // Sample rows — date cells dùng serial number + format DD/MM/YYYY
   const DATE_FMT = 'DD/MM/YYYY';
   const samples = [
     ['7/2026','21405087WSR','WS','126','FCL', serial(2026,6,7), serial(2026,6,14), serial(2026,6,21), 'Củ Chi CD8','WSI','N','Passed',''],
     ['7/2026','21405088WSR','WS','127','LCL', serial(2026,6,10), serial(2026,6,17), serial(2026,6,24), 'Củ Chi CD9','CD','N','',''],
   ];
+
   samples.forEach((row, ri) => {
     row.forEach((v, c) => {
       const isDate = c >= 5 && c <= 7;
@@ -886,27 +916,31 @@ function downloadTemplate() {
         : {v: v === '' ? '' : String(v), t: 's'};
     });
   });
+
   ws['!ref'] = XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:2,c:12}});
   ws['!cols'] = [
     {wch:8},{wch:16},{wch:8},{wch:8},{wch:8},
     {wch:22},{wch:16},{wch:16},{wch:14},{wch:8},{wch:12},{wch:20},{wch:20}
   ];
+
   XLSX.utils.book_append_sheet(wb, ws, 'Import Data');
-  XLSX.writeFile(wb, 'Inspection_Template.xlsx');
+  XLSX.writeFile(wb, 'WS_Inspection_Template.xlsx');
   showToast('📋 Đã tải file template');
 }
 
-// ===== ACCESS REQUEST =====
+// ===== ACCESS REQUEST (Viewer → yêu cầu Editor) =====
 let myRequestStatus = null;
 
 async function loadMyRequestStatus() {
   if (!currentUser) return;
   try {
+    // Không dùng orderBy để tránh cần composite index
     const snap = await db.collection('accessRequests')
       .where('uid', '==', currentUser.uid)
       .where('status', '==', 'pending').limit(1).get();
     if (!snap.empty) { myRequestStatus = 'pending'; }
     else {
+      // Check xem có rejected không
       const rej = await db.collection('accessRequests')
         .where('uid', '==', currentUser.uid)
         .where('status', '==', 'rejected').limit(1).get();
@@ -937,15 +971,18 @@ function openRequestModal() {
 async function submitAccessRequest() {
   if (!currentUser) return;
   const note = document.getElementById('requestNote').value.trim();
+
   try {
+    // Kiểm tra pending request trùng (trong try-catch để không block nếu rules chưa cập nhật)
     try {
       const existing = await db.collection('accessRequests')
         .where('uid', '==', currentUser.uid).where('status', '==', 'pending').limit(1).get();
       if (!existing.empty) {
         showToast('⚠️ Bạn đã có yêu cầu đang chờ duyệt', 3000); return;
       }
-    } catch(e) {}
+    } catch(e) { /* tiếp tục nếu không đọc được (rules chưa set) */ }
 
+    // Lưu vào Firestore
     const ref = await db.collection('accessRequests').add({
       uid: currentUser.uid,
       email: currentUser.email,
@@ -955,6 +992,7 @@ async function submitAccessRequest() {
       requestedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
+    // Gửi email qua EmailJS
     try {
       emailjs.init(EMAILJS_PUBLIC_KEY);
       const now = new Date().toLocaleString('vi-VN', {timeZone:'Asia/Ho_Chi_Minh'});
@@ -969,6 +1007,7 @@ async function submitAccessRequest() {
       });
       showToast('✅ Đã gửi yêu cầu! Admin sẽ nhận email để duyệt.');
     } catch(emailErr) {
+      // Lưu Firestore OK nhưng email lỗi — vẫn chấp nhận
       showToast('✅ Đã ghi nhận yêu cầu (lỗi gửi email: ' + emailErr.text + ')');
     }
 
@@ -985,24 +1024,30 @@ async function submitAccessRequest() {
   }
 }
 
-// ===== DEEP LINK APPROVAL =====
+// ===== DEEP LINK APPROVAL (admin click link trong email) =====
 async function checkURLAction() {
   const params = new URLSearchParams(window.location.search);
   const action = params.get('action');
   const uid    = params.get('uid');
   const reqId  = params.get('reqId');
   if (!action || !uid || currentRole !== 'admin') return;
+
+  // Xóa params khỏi URL (gọn hơn)
   window.history.replaceState({}, '', window.location.pathname);
+
+  // Lấy tên người yêu cầu
   let name = uid;
   try {
     const doc = await db.collection('users').doc(uid).get();
     if (doc.exists) name = doc.data().displayName || doc.data().email || uid;
   } catch(e) {}
+
   const modal   = document.getElementById('actionModal');
   const title   = document.getElementById('actionModalTitle');
   const body    = document.getElementById('actionModalBody');
   const footer  = document.getElementById('actionModalFooter');
   modal.style.display = 'flex';
+
   if (action === 'approve') {
     title.textContent = '✅ Duyệt quyền Editor';
     body.innerHTML = `Duyệt quyền <b>Editor</b> cho <b>${name}</b>?<br><small style="color:#718096">Họ sẽ có thể thêm/sửa/xóa PO do mình tạo.</small>`;
