@@ -172,6 +172,7 @@ tr.row-warning:hover td{background:#f6e05e}
   <!-- SUMMARY -->
   <div class="summary">
     <div class="summary-card"><div class="num" id="totalPO">0</div><div class="lbl">Tổng PO</div></div>
+    <div class="summary-card"><div class="num" id="hdCount">0</div><div class="lbl">Số HĐ</div></div>
     <div class="summary-card done"><div class="num" id="doneCount">0</div><div class="lbl">Đã kiểm</div></div>
     <div class="summary-card pending"><div class="num" id="pendingCount">0</div><div class="lbl">Chưa kiểm</div></div>
     <div class="summary-card passed"><div class="num" id="passedCount">0</div><div class="lbl">Passed</div></div>
@@ -646,6 +647,7 @@ function populateFilterOptions() {
 
 function updateSummary(data) {
   document.getElementById('totalPO').textContent = data.length;
+  document.getElementById('hdCount').textContent = new Set(data.map(r=>r.soHD).filter(Boolean)).size;
   document.getElementById('doneCount').textContent = data.filter(r=>r.daKiem==='Y').length;
   document.getElementById('pendingCount').textContent = data.filter(r=>r.daKiem!=='Y').length;
   document.getElementById('passedCount').textContent = data.filter(r=>r.ketQua==='Passed').length;
