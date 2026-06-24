@@ -914,9 +914,18 @@ async function processRows(rows) {
 
     const existing = allData.find(r => r.soPO === soPO);
     if (existing) {
-      // Admin: upsert tất cả | Editor: chỉ update record của mình, skip của người khác
-      if (currentRole === 'admin' || existing.createdBy === currentUser?.uid) {
-        batch.update(db.collection('inspections').doc(existing.id), fields);
+      // Admin: upsert tất cả | Editor: update record của mình hoặc record chưa có chủ
+      const canUpdate = currentRole === 'admin'
+        || existing.createdBy === currentUser?.uid
+        || !existing.createdBy; // record cũ chưa có creator → ai cũng update được
+      if (canUpdate) {
+        const updatePayload = { ...fields };
+        // Backfill creator nếu record cũ chưa có
+        if (!existing.createdBy) {
+          updatePayload.createdBy = currentUser.uid;
+          updatePayload.createdByName = currentUser.displayName || currentUser.email;
+        }
+        batch.update(db.collection('inspections').doc(existing.id), updatePayload);
         updated++;
       } else {
         skipped++;
