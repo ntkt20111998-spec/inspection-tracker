@@ -194,7 +194,7 @@ tr.row-warning:hover td{background:#f6e05e}
       📥 Import Excel/CSV
       <input type="file" accept=".xlsx,.xls,.csv,.tsv,.txt" onchange="importFile(event)" style="display:none">
     </label>
-    <button class="btn btn-export" onclick="exportCSV()">📊 Export CSV</button>
+    <button class="btn btn-export" onclick="exportExcel()">📊 Export Excel</button>
     <button class="btn write-access" onclick="downloadTemplate()" style="display:none;background:#6b46c1;color:#fff">📋 Tải Template</button>
   </div>
 
@@ -219,7 +219,7 @@ tr.row-warning:hover td{background:#f6e05e}
           <th class="sortable" onclick="sortTable('ngayInline')">Ngày Inline <span class="sort-icon" id="si-ngayInline">⇅</span></th>
           <th class="sortable" onclick="sortTable('ngayFinal')">Ngày Final <span class="sort-icon" id="si-ngayFinal">⇅</span></th>
           <th class="sortable" onclick="sortTable('xuong')">Xưởng kiểm <span class="sort-icon" id="si-xuong">⇅</span></th>
-          <th class="sortable" onclick="sortTable('wsi')">Khách / CD <span class="sort-icon" id="si-wsi">⇅</span></th>
+          <th class="sortable" onclick="sortTable('wsi')">Đơn vị kiểm hàng <span class="sort-icon" id="si-wsi">⇅</span></th>
           <th class="sortable" onclick="sortTable('daKiem')">Đã Kiểm <span class="sort-icon" id="si-daKiem">⇅</span></th>
           <th class="sortable" onclick="sortTable('ketQua')">Kết Quả <span class="sort-icon" id="si-ketQua">⇅</span></th>
           <th>Ghi Chú</th>
@@ -290,11 +290,12 @@ tr.row-warning:hover td{background:#f6e05e}
             </select>
           </div>
           <div class="form-group">
-            <label>Khách / CD</label>
+            <label>Đơn vị kiểm hàng</label>
             <select id="f_wsi">
               <option value="">-- Chọn --</option>
-              <option value="WSI">WSI</option>
-              <option value="CD">CD</option>
+              <option value="Khách hàng">Khách hàng</option>
+              <option value="Cát Đằng">Cát Đằng</option>
+              <option value="Bên thứ 3">Bên thứ 3</option>
             </select>
           </div>
           <div class="form-group">
@@ -393,7 +394,7 @@ let sortDir = 1;
 const VALID_VALUES = {
   lclFcl: ['LCL', 'FCL'],
   xuong:  ['Củ Chi CD8', 'Củ Chi CD9', 'Hóc Môn CD10'],
-  wsi:    ['WSI', 'CD'],
+  wsi:    ['Khách hàng', 'Cát Đằng', 'Bên thứ 3'],
   daKiem: ['Y', 'N'],
   ketQua: ['Passed', 'Failed'],
 };
@@ -757,19 +758,37 @@ async function deleteRecord(id) {
 }
 
 // ===== EXPORT CSV =====
-function exportCSV() {
-  const headers = 'Tháng,Số PO,Brand,Số HĐ,LCL/FCL,Ship Window Start Date,Ngày Inline,Ngày Final,Xưởng kiểm,WSI/CD,Đã kiểm,Kết quả,Ghi chú\n';
-  const rows = allData.map(r => [
-    r.thang, r.soPO, r.brand, r.soHD, r.lclFcl,
-    r.ngayRaHang, r.ngayInline, r.ngayFinal,
-    r.xuong, r.wsi, r.daKiem, r.ketQua, r.ghiChu
-  ].map(v => '"' + String(v||'').replace(/"/g,'""') + '"').join(',')).join('\n');
-  const blob = new Blob(['﻿' + headers + rows], {type:'text/csv;charset=utf-8;'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'wsi_inspection_tracker_' + new Date().toISOString().slice(0,10) + '.csv';
-  a.click();
-  showToast('📊 Đã export CSV');
+function exportExcel() {
+  const wb = XLSX.utils.book_new();
+  const COLS = [
+    'Tháng','Số PO','Brand','Số HĐ','LCL/FCL',
+    'Ship Window Start Date','Ngày Inline','Ngày Final',
+    'Xưởng kiểm','Đơn vị kiểm hàng','Đã Kiểm','Kết Quả','Ghi Chú'
+  ];
+  const DATE_FMT = 'DD/MM/YYYY';
+  const aoa = [COLS];
+  allData.forEach(r => {
+    aoa.push([
+      r.thang, r.soPO, r.brand, r.soHD, r.lclFcl,
+      r.ngayRaHang, r.ngayInline, r.ngayFinal,
+      r.xuong, r.wsi, r.daKiem, r.ketQua, r.ghiChu
+    ]);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  for (let ri = 1; ri < aoa.length; ri++) {
+    [5,6,7].forEach(ci => {
+      const addr = XLSX.utils.encode_cell({r: ri, c: ci});
+      if (ws[addr] && ws[addr].v) ws[addr].z = DATE_FMT;
+    });
+  }
+  ws['!cols'] = [
+    {wch:9},{wch:20},{wch:8},{wch:8},{wch:10},
+    {wch:24},{wch:16},{wch:16},{wch:22},{wch:22},{wch:12},{wch:14},{wch:22}
+  ];
+  ws['!freeze'] = {xSplit:0, ySplit:1, topLeftCell:'A2', activePane:'bottomLeft'};
+  XLSX.utils.book_append_sheet(wb, ws, 'Data');
+  XLSX.writeFile(wb, 'CD_Inspection_Export_' + new Date().toISOString().slice(0,10) + '.xlsx');
+  showToast('📊 Đã export Excel (' + allData.length + ' dòng)');
 }
 
 // ===== IMPORT FILE =====
@@ -863,7 +882,7 @@ async function processRows(rows) {
     const dropdownMap = [
       ['lclFcl', 'LCL/FCL'],
       ['xuong',  'Xưởng kiểm'],
-      ['wsi',    'Khách/CD'],
+      ['wsi',    'Đơn vị kiểm hàng'],
       ['daKiem', 'Đã Kiểm'],
       ['ketQua', 'Kết Quả'],
     ];
@@ -915,84 +934,18 @@ async function processRows(rows) {
 }
 
 // ===== TEMPLATE DOWNLOAD =====
+// Pre-built Excel template (openpyxl): header màu navy, dropdown validation, sheet Quy Định
+const _TEMPLATE_B64 = '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';
+
 function downloadTemplate() {
-  const wb = XLSX.utils.book_new();
-
-  // Helper: ngày serial Excel (days from Dec 30, 1899)
-  const serial = (y, m, d) => Math.floor(
-    (new Date(Date.UTC(y, m-1, d)) - new Date(Date.UTC(1899, 11, 30))) / 86400000
-  );
-  const DATE_FMT = 'DD/MM/YYYY';
-
-  // ===== Sheet 1: Import Data =====
-  const ws = {};
-
-  // Header row — tên cột kèm gợi ý giá trị hợp lệ
-  const headers = [
-    'Tháng',
-    'Số PO (bắt buộc)',
-    'Brand',
-    'Số HĐ',
-    'LCL/FCL [LCL | FCL]',
-    'Ship Window Start Date [DD/MM/YYYY]',
-    'Ngày Inline [DD/MM/YYYY]',
-    'Ngày Final [DD/MM/YYYY]',
-    'Xưởng kiểm [Củ Chi CD8 | CD9 | Hóc Môn CD10]',
-    'Khách/CD [WSI | CD]',
-    'Đã Kiểm [Y | N]',
-    'Kết Quả [Passed | Failed]',
-    'Ghi Chú',
-  ];
-  headers.forEach((h, c) => {
-    ws[XLSX.utils.encode_cell({r:0, c})] = {v: h, t: 's'};
-  });
-
-  // Sample rows
-  const samples = [
-    ['7/2026','21405087WSR','WS','126','FCL', serial(2026,6,7), serial(2026,6,14), serial(2026,6,21), 'Củ Chi CD8','WSI','N','Passed',''],
-    ['7/2026','21405088WSR','WS','127','LCL', serial(2026,6,10), serial(2026,6,17), serial(2026,6,24), 'Củ Chi CD9','CD','N','',''],
-  ];
-  samples.forEach((row, ri) => {
-    row.forEach((v, c) => {
-      const isDate = c >= 5 && c <= 7;
-      ws[XLSX.utils.encode_cell({r: ri+1, c})] = isDate
-        ? {v, t: 'n', z: DATE_FMT}
-        : {v: v === '' ? '' : String(v), t: 's'};
-    });
-  });
-
-  ws['!ref'] = XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:2,c:12}});
-  ws['!cols'] = [
-    {wch:9},{wch:20},{wch:8},{wch:8},{wch:20},
-    {wch:32},{wch:24},{wch:24},{wch:40},{wch:16},{wch:16},{wch:24},{wch:20}
-  ];
-  XLSX.utils.book_append_sheet(wb, ws, 'Import Data');
-
-  // ===== Sheet 2: Quy Định =====
-  const rulesAoa = [
-    ['Cột', 'Tên Field', 'Loại dữ liệu', 'Giá trị hợp lệ', 'Bắt buộc?', 'Ghi chú'],
-    ['A', 'Tháng', 'Text tự do', 'VD: 7/2026, 8/2026', 'Không', ''],
-    ['B', 'Số PO', 'Text', 'Mã PO duy nhất', 'CÓ', 'Hệ thống dùng Số PO để nhận diện & cập nhật bản ghi'],
-    ['C', 'Brand', 'Text tự do', 'VD: WS, UA, Nike...', 'Không', ''],
-    ['D', 'Số HĐ', 'Text tự do', 'VD: 126, 127', 'Không', 'Nhiều PO cùng số HĐ → thống kê chỉ tính 1'],
-    ['E', 'LCL/FCL', 'Dropdown', 'LCL  |  FCL', 'Không', 'Chỉ chấp nhận đúng 2 giá trị này (phân biệt HOA/thường)'],
-    ['F', 'Ship Window Start Date', 'Ngày', 'DD/MM/YYYY', 'Không', 'VD: 07/06/2026'],
-    ['G', 'Ngày Inline', 'Ngày', 'DD/MM/YYYY', 'Không', ''],
-    ['H', 'Ngày Final', 'Ngày', 'DD/MM/YYYY', 'Không', 'Dùng để tính màu cảnh báo deadline trong app'],
-    ['I', 'Xưởng kiểm', 'Dropdown', 'Củ Chi CD8  |  Củ Chi CD9  |  Hóc Môn CD10', 'Không', 'Điền đúng tên xưởng như trong danh sách'],
-    ['J', 'Khách/CD', 'Dropdown', 'WSI  |  CD', 'Không', ''],
-    ['K', 'Đã Kiểm', 'Dropdown', 'Y  |  N', 'Không', 'Y = đã kiểm, N = chưa kiểm'],
-    ['L', 'Kết Quả', 'Dropdown', 'Passed  |  Failed', 'Không', 'Để trống nếu chưa có kết quả'],
-    ['M', 'Ghi Chú', 'Text tự do', 'Không giới hạn', 'Không', ''],
-  ];
-  const wsRules = XLSX.utils.aoa_to_sheet(rulesAoa);
-  wsRules['!cols'] = [
-    {wch:5},{wch:26},{wch:16},{wch:46},{wch:11},{wch:50}
-  ];
-  XLSX.utils.book_append_sheet(wb, wsRules, 'Quy Định');
-
-  XLSX.writeFile(wb, 'CD_Inspection_Template.xlsx');
-  showToast('📋 Đã tải template — xem sheet "Quy Định" để biết format');
+  const bytes = Uint8Array.from(atob(_TEMPLATE_B64), c => c.charCodeAt(0));
+  const blob = new Blob([bytes], {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'CD_Inspection_Template.xlsx';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  showToast('📋 Đã tải template — có dropdown list + sheet Quy Định');
 }
 
 // ===== ACCESS REQUEST (Viewer → yêu cầu Editor) =====
