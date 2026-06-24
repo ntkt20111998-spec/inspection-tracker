@@ -1161,4 +1161,44 @@ async function checkURLAction() {
     body.innerHTML = `Từ chối yêu cầu quyền Editor của <b>${name}</b>?`;
     footer.innerHTML = `
       <button class="btn-cancel" onclick="document.getElementById('actionModal').style.display='none'">Hủy</button>
-      <button class="btn-save" style="background:#e53e3e"
+      <button class="btn-save" style="background:#e53e3e" onclick="confirmReject('${uid}','${reqId}')">❌ Từ chối</button>`;
+  }
+}
+
+async function confirmApprove(uid, reqId) {
+  try {
+    const batch = db.batch();
+    batch.update(db.collection('users').doc(uid), { role: 'editor' });
+    if (reqId) batch.update(db.collection('accessRequests').doc(reqId), {
+      status: 'approved',
+      reviewedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await batch.commit();
+    document.getElementById('actionModal').style.display = 'none';
+    showToast('✅ Đã duyệt quyền Editor thành công!');
+  } catch(e) { showToast('❌ Lỗi: ' + e.message, 5000); }
+}
+
+async function confirmReject(uid, reqId) {
+  try {
+    if (reqId) await db.collection('accessRequests').doc(reqId).update({
+      status: 'rejected',
+      reviewedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    document.getElementById('actionModal').style.display = 'none';
+    showToast('Đã từ chối yêu cầu.');
+  } catch(e) { showToast('❌ Lỗi: ' + e.message, 5000); }
+}
+
+// ===== TOAST =====
+let toastTimer;
+function showToast(msg, duration=2500) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), duration);
+}
+</script>
+</body>
+</html>
