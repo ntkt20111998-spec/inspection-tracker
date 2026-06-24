@@ -390,6 +390,14 @@ let unsubscribe = null;
 let sortField = 'ngayFinal';
 let sortDir = 1;
 
+const VALID_VALUES = {
+  lclFcl: ['LCL', 'FCL'],
+  xuong:  ['Củ Chi CD8', 'Củ Chi CD9', 'Hóc Môn CD10'],
+  wsi:    ['WSI', 'CD'],
+  daKiem: ['Y', 'N'],
+  ketQua: ['Passed', 'Failed'],
+};
+
 // ===== AUTH =====
 auth.onAuthStateChanged(async (user) => {
   document.getElementById('loading').style.display = 'none';
@@ -785,7 +793,7 @@ function importFile(event) {
         let startRow = 1; // default: skip row 0
         for (let i = 0; i < Math.min(rows.length, 5); i++) {
           const v = String(rows[i][1] || '').trim().toLowerCase();
-          if (v === 'số po' || v === 'so po' || v === 'po') { startRow = i + 1; break; }
+          if (v.includes('số po') || v.includes('so po') || v === 'po') { startRow = i + 1; break; }
         }
 
         await processRows(rows.slice(startRow));
@@ -830,6 +838,8 @@ async function processRows(rows) {
   if (!rows.length) { showToast('⚠️ Không có dữ liệu để import', 4000); return; }
   let created = 0, updated = 0, skipped = 0;
   const batch = db.batch();
+  const invalidWarnings = [];
+
   for (const cols of rows) {
     const soPO = String(cols[1] || '').trim();
     if (!soPO) continue;
@@ -848,6 +858,22 @@ async function processRows(rows) {
       ketQua:     String(cols[11] || '').trim(),
       ghiChu:     String(cols[12] || '').trim(),
     };
+
+    // Validate dropdown fields — ghi cảnh báo nhưng vẫn import
+    const dropdownMap = [
+      ['lclFcl', 'LCL/FCL'],
+      ['xuong',  'Xưởng kiểm'],
+      ['wsi',    'Khách/CD'],
+      ['daKiem', 'Đã Kiểm'],
+      ['ketQua', 'Kết Quả'],
+    ];
+    for (const [key, label] of dropdownMap) {
+      const val = fields[key];
+      if (val && !VALID_VALUES[key].includes(val)) {
+        invalidWarnings.push(`PO ${soPO} — ${label}: "${val}" (hợp lệ: ${VALID_VALUES[key].join(' / ')})`);
+      }
+    }
+
     const existing = allData.find(r => r.soPO === soPO);
     if (existing) {
       // Admin: upsert tất cả | Editor: chỉ update record của mình, skip của người khác
@@ -876,7 +902,13 @@ async function processRows(rows) {
     if (created) parts.push(`thêm mới ${created}`);
     if (updated) parts.push(`cập nhật ${updated}`);
     if (skipped) parts.push(`bỏ qua ${skipped} (của người khác)`);
-    showToast(`✅ Import: ${parts.join(', ')}`);
+    const mainMsg = `✅ Import: ${parts.join(', ')}`;
+    if (invalidWarnings.length) {
+      showToast(`${mainMsg} — ⚠️ ${invalidWarnings.length} giá trị dropdown không hợp lệ (xem Console)`, 6000);
+      console.warn('[Import] Dropdown không hợp lệ:\n' + invalidWarnings.join('\n'));
+    } else {
+      showToast(mainMsg);
+    }
   } catch(err) {
     showToast('❌ Lỗi import: ' + err.message, 5000);
   }
@@ -885,31 +917,41 @@ async function processRows(rows) {
 // ===== TEMPLATE DOWNLOAD =====
 function downloadTemplate() {
   const wb = XLSX.utils.book_new();
-  const ws = {};
 
-  // Đổi ngày serial Excel: days from Dec 30, 1899
+  // Helper: ngày serial Excel (days from Dec 30, 1899)
   const serial = (y, m, d) => Math.floor(
     (new Date(Date.UTC(y, m-1, d)) - new Date(Date.UTC(1899, 11, 30))) / 86400000
   );
+  const DATE_FMT = 'DD/MM/YYYY';
 
+  // ===== Sheet 1: Import Data =====
+  const ws = {};
+
+  // Header row — tên cột kèm gợi ý giá trị hợp lệ
   const headers = [
-    'Tháng','Số PO','Brand','Số HĐ','LCL/FCL',
-    'Ship Window Start Date','Ngày Inline','Ngày Final',
-    'Xưởng kiểm','WSI/CD','Đã Kiểm (Y/N)','Kết Quả (Passed/Failed)','Ghi Chú'
+    'Tháng',
+    'Số PO (bắt buộc)',
+    'Brand',
+    'Số HĐ',
+    'LCL/FCL [LCL | FCL]',
+    'Ship Window Start Date [DD/MM/YYYY]',
+    'Ngày Inline [DD/MM/YYYY]',
+    'Ngày Final [DD/MM/YYYY]',
+    'Xưởng kiểm [Củ Chi CD8 | CD9 | Hóc Môn CD10]',
+    'Khách/CD [WSI | CD]',
+    'Đã Kiểm [Y | N]',
+    'Kết Quả [Passed | Failed]',
+    'Ghi Chú',
   ];
-
-  // Row 0: headers
   headers.forEach((h, c) => {
     ws[XLSX.utils.encode_cell({r:0, c})] = {v: h, t: 's'};
   });
 
-  // Sample rows — date cells dùng serial number + format DD/MM/YYYY
-  const DATE_FMT = 'DD/MM/YYYY';
+  // Sample rows
   const samples = [
     ['7/2026','21405087WSR','WS','126','FCL', serial(2026,6,7), serial(2026,6,14), serial(2026,6,21), 'Củ Chi CD8','WSI','N','Passed',''],
     ['7/2026','21405088WSR','WS','127','LCL', serial(2026,6,10), serial(2026,6,17), serial(2026,6,24), 'Củ Chi CD9','CD','N','',''],
   ];
-
   samples.forEach((row, ri) => {
     row.forEach((v, c) => {
       const isDate = c >= 5 && c <= 7;
@@ -921,13 +963,36 @@ function downloadTemplate() {
 
   ws['!ref'] = XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:2,c:12}});
   ws['!cols'] = [
-    {wch:8},{wch:16},{wch:8},{wch:8},{wch:8},
-    {wch:22},{wch:16},{wch:16},{wch:14},{wch:8},{wch:12},{wch:20},{wch:20}
+    {wch:9},{wch:20},{wch:8},{wch:8},{wch:20},
+    {wch:32},{wch:24},{wch:24},{wch:40},{wch:16},{wch:16},{wch:24},{wch:20}
   ];
-
   XLSX.utils.book_append_sheet(wb, ws, 'Import Data');
-  XLSX.writeFile(wb, 'WS_Inspection_Template.xlsx');
-  showToast('📋 Đã tải file template');
+
+  // ===== Sheet 2: Quy Định =====
+  const rulesAoa = [
+    ['Cột', 'Tên Field', 'Loại dữ liệu', 'Giá trị hợp lệ', 'Bắt buộc?', 'Ghi chú'],
+    ['A', 'Tháng', 'Text tự do', 'VD: 7/2026, 8/2026', 'Không', ''],
+    ['B', 'Số PO', 'Text', 'Mã PO duy nhất', 'CÓ', 'Hệ thống dùng Số PO để nhận diện & cập nhật bản ghi'],
+    ['C', 'Brand', 'Text tự do', 'VD: WS, UA, Nike...', 'Không', ''],
+    ['D', 'Số HĐ', 'Text tự do', 'VD: 126, 127', 'Không', 'Nhiều PO cùng số HĐ → thống kê chỉ tính 1'],
+    ['E', 'LCL/FCL', 'Dropdown', 'LCL  |  FCL', 'Không', 'Chỉ chấp nhận đúng 2 giá trị này (phân biệt HOA/thường)'],
+    ['F', 'Ship Window Start Date', 'Ngày', 'DD/MM/YYYY', 'Không', 'VD: 07/06/2026'],
+    ['G', 'Ngày Inline', 'Ngày', 'DD/MM/YYYY', 'Không', ''],
+    ['H', 'Ngày Final', 'Ngày', 'DD/MM/YYYY', 'Không', 'Dùng để tính màu cảnh báo deadline trong app'],
+    ['I', 'Xưởng kiểm', 'Dropdown', 'Củ Chi CD8  |  Củ Chi CD9  |  Hóc Môn CD10', 'Không', 'Điền đúng tên xưởng như trong danh sách'],
+    ['J', 'Khách/CD', 'Dropdown', 'WSI  |  CD', 'Không', ''],
+    ['K', 'Đã Kiểm', 'Dropdown', 'Y  |  N', 'Không', 'Y = đã kiểm, N = chưa kiểm'],
+    ['L', 'Kết Quả', 'Dropdown', 'Passed  |  Failed', 'Không', 'Để trống nếu chưa có kết quả'],
+    ['M', 'Ghi Chú', 'Text tự do', 'Không giới hạn', 'Không', ''],
+  ];
+  const wsRules = XLSX.utils.aoa_to_sheet(rulesAoa);
+  wsRules['!cols'] = [
+    {wch:5},{wch:26},{wch:16},{wch:46},{wch:11},{wch:50}
+  ];
+  XLSX.utils.book_append_sheet(wb, wsRules, 'Quy Định');
+
+  XLSX.writeFile(wb, 'CD_Inspection_Template.xlsx');
+  showToast('📋 Đã tải template — xem sheet "Quy Định" để biết format');
 }
 
 // ===== ACCESS REQUEST (Viewer → yêu cầu Editor) =====
