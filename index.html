@@ -624,21 +624,34 @@ function applyFilters() {
     return true;
   });
 
-  // Apply sort
-  if (sortField) {
-    const dateFields = ['ngayRaHang','ngayInline','ngayFinal'];
-    filtered.sort((a, b) => {
+  // Sort: done rows (daKiem='Y') always sink to bottom; within groups apply column sort or default
+  const dateFields = ['ngayRaHang','ngayInline','ngayFinal'];
+  filtered.sort((a, b) => {
+    // Primary: đã kiểm → cuối list
+    const doneA = a.daKiem === 'Y' ? 1 : 0;
+    const doneB = b.daKiem === 'Y' ? 1 : 0;
+    if (doneA !== doneB) return doneA - doneB;
+
+    // Secondary: nếu user đã click cột, sort theo cột đó
+    if (sortField) {
       let va = a[sortField] || '';
       let vb = b[sortField] || '';
       if (dateFields.includes(sortField)) {
-        // Parse DD/MM/YYYY or YYYY-MM-DD
         va = parseDateForSort(va);
         vb = parseDateForSort(vb);
         return (va - vb) * sortDir;
       }
       return String(va).localeCompare(String(vb), 'vi') * sortDir;
-    });
-  }
+    }
+
+    // Default: sắp theo ngayFinal tăng dần (gần hạn nhất lên đầu), không có ngày → xuống dưới
+    const da = parseDateForSort(a.ngayFinal || '');
+    const db = parseDateForSort(b.ngayFinal || '');
+    if (da && db) return da - db;
+    if (da) return -1;
+    if (db) return 1;
+    return 0;
+  });
 
   renderTable(filtered);
   updateSummary(filtered);
