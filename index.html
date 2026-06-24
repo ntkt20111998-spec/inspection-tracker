@@ -76,9 +76,11 @@ tr:hover td{background:#f7fafc}
 tr.row-overdue td{background:#fed7d7}
 tr.row-urgent td{background:#feebc8}
 tr.row-warning td{background:#fefcbf}
+tr.row-done td{background:#f0fff4}
 tr.row-overdue:hover td{background:#fc8181}
 tr.row-urgent:hover td{background:#fbd38d}
 tr.row-warning:hover td{background:#f6e05e}
+tr.row-done:hover td{background:#c6f6d5}
 .badge-pass{background:#c6f6d5;color:#276749;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:700}
 .badge-fail{background:#fed7d7;color:#9b2c2c;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:700}
 .btn-sm{padding:4px 10px;border:none;border-radius:4px;font-size:11px;cursor:pointer;font-weight:600;transition:background .15s}
@@ -95,6 +97,7 @@ tr.row-warning:hover td{background:#f6e05e}
 .dot-overdue{background:#fc8181}
 .dot-urgent{background:#f6ad55}
 .dot-warning{background:#f6e05e}
+.dot-done{background:#68d391}
 
 /* ===== MODAL ===== */
 #modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;align-items:center;justify-content:center;padding:16px}
@@ -200,9 +203,10 @@ tr.row-warning:hover td{background:#f6e05e}
 
   <!-- LEGEND -->
   <div class="legend">
-    <span class="legend-item"><span class="legend-dot dot-overdue"></span>Quá hạn</span>
-    <span class="legend-item"><span class="legend-dot dot-urgent"></span>Trong 3 ngày</span>
-    <span class="legend-item"><span class="legend-dot dot-warning"></span>Trong 7 ngày</span>
+    <span class="legend-item"><span class="legend-dot dot-overdue"></span>Quá hạn (chưa kiểm)</span>
+    <span class="legend-item"><span class="legend-dot dot-urgent"></span>Trong 3 ngày (chưa kiểm)</span>
+    <span class="legend-item"><span class="legend-dot dot-warning"></span>Trong 7 ngày (chưa kiểm)</span>
+    <span class="legend-item"><span class="legend-dot dot-done"></span>Đã kiểm</span>
   </div>
 
   <!-- TABLE -->
@@ -540,7 +544,9 @@ function renderTable(data) {
   }
   tbody.innerHTML = data.map(r => {
     let rowClass = '';
-    if (r.ngayFinal) {
+    if (r.daKiem === 'Y') {
+      rowClass = 'row-done';
+    } else if (r.ngayFinal) {
       const d = parseDate(r.ngayFinal);
       if (d) {
         const diff = Math.ceil((d - today) / 86400000);
