@@ -233,8 +233,9 @@ tr.row-done:hover td{background:#c6f6d5}
       <option value="Passed">Passed</option>
       <option value="Failed">Failed</option>
     </select>
-    <input type="date" id="filterNgayTu" onchange="applyFilters()" title="Ngày Final từ ngày">
-    <input type="date" id="filterNgayDen" onchange="applyFilters()" title="Ngày Final đến ngày">
+    <input type="date" id="filterNgayTu" onchange="applyFilters()" title="Ngày Final từ ngày" autocomplete="off" value="">
+    <input type="date" id="filterNgayDen" onchange="applyFilters()" title="Ngày Final đến ngày" autocomplete="off" value="">
+    <button class="btn" onclick="clearDateFilter()" title="Xóa filter ngày" style="background:#e2e8f0;color:#4a5568;padding:6px 10px">✕</button>
     <select id="filterCreator" onchange="applyFilters()"><option value="">Tất cả người tạo</option></select>
     <button class="btn btn-add write-access" onclick="showAddModal()" style="display:none">+ Thêm PO</button>
     <label class="btn btn-import write-access" style="display:none;cursor:pointer">
@@ -671,14 +672,17 @@ function applyFilters() {
     if (creator && (r.createdByName || '') !== creator) return false;
     // Lọc theo khoảng ngày Final
     if (ngayTu || ngayDen) {
-      const d = parseDate(r.ngayFinal);
+      const d = parseDate(r.ngayFinal);  // local midnight
       const ts = d ? d.getTime() : null;
       if (ngayTu) {
-        const from = new Date(ngayTu).getTime();
+        // Parse YYYY-MM-DD as local (not UTC) để tránh lệch timezone
+        const [fy,fm,fd] = ngayTu.split('-').map(Number);
+        const from = new Date(fy, fm-1, fd).getTime();
         if (!ts || ts < from) return false;
       }
       if (ngayDen) {
-        const to = new Date(ngayDen).getTime() + 86400000 - 1; // inclusive
+        const [ty,tm,td] = ngayDen.split('-').map(Number);
+        const to = new Date(ty, tm-1, td, 23, 59, 59, 999).getTime();
         if (!ts || ts > to) return false;
       }
     }
@@ -716,6 +720,12 @@ function applyFilters() {
 
   renderTable(filtered);
   updateSummary(filtered);
+}
+
+function clearDateFilter() {
+  document.getElementById('filterNgayTu').value = '';
+  document.getElementById('filterNgayDen').value = '';
+  applyFilters();
 }
 
 function parseDateForSort(s) {
