@@ -157,6 +157,7 @@ tr.row-done:hover td{background:#c6f6d5}
   /* Controls — search full width, selects shrink */
   .controls{padding:8px 12px;gap:6px}
   .controls input[type=text]{min-width:0;width:100%;font-size:12px;padding:6px 10px}
+  .controls input[type=date]{font-size:11px;padding:5px 6px;flex:1 1 0}
   .controls select{font-size:12px;padding:5px 6px;flex:1 1 0}
   .btn{padding:6px 10px;font-size:12px}
 
@@ -232,6 +233,9 @@ tr.row-done:hover td{background:#c6f6d5}
       <option value="Passed">Passed</option>
       <option value="Failed">Failed</option>
     </select>
+    <input type="date" id="filterNgayTu" onchange="applyFilters()" title="Ngày Final từ ngày">
+    <input type="date" id="filterNgayDen" onchange="applyFilters()" title="Ngày Final đến ngày">
+    <select id="filterCreator" onchange="applyFilters()"><option value="">Tất cả người tạo</option></select>
     <button class="btn btn-add write-access" onclick="showAddModal()" style="display:none">+ Thêm PO</button>
     <label class="btn btn-import write-access" style="display:none;cursor:pointer">
       📥 Import Excel/CSV
@@ -651,7 +655,10 @@ function applyFilters() {
   const search = (document.getElementById('searchInput').value || '').toLowerCase();
   const thang = document.getElementById('filterThang').value;
   const brand = document.getElementById('filterBrand').value;
-  const ketQua = document.getElementById('filterKetQua').value;
+  const ketQua   = document.getElementById('filterKetQua').value;
+  const ngayTu   = document.getElementById('filterNgayTu').value;   // YYYY-MM-DD
+  const ngayDen  = document.getElementById('filterNgayDen').value;  // YYYY-MM-DD
+  const creator  = document.getElementById('filterCreator').value;
 
   let filtered = allData.filter(r => {
     if (search) {
@@ -661,6 +668,20 @@ function applyFilters() {
     if (thang && r.thang !== thang) return false;
     if (brand && r.brand !== brand) return false;
     if (ketQua && r.ketQua !== ketQua) return false;
+    if (creator && (r.createdByName || '') !== creator) return false;
+    // Lọc theo khoảng ngày Final
+    if (ngayTu || ngayDen) {
+      const d = parseDate(r.ngayFinal);
+      const ts = d ? d.getTime() : null;
+      if (ngayTu) {
+        const from = new Date(ngayTu).getTime();
+        if (!ts || ts < from) return false;
+      }
+      if (ngayDen) {
+        const to = new Date(ngayDen).getTime() + 86400000 - 1; // inclusive
+        if (!ts || ts > to) return false;
+      }
+    }
     return true;
   });
 
@@ -711,6 +732,13 @@ function populateFilterOptions() {
   tSel.innerHTML = '<option value="">Tất cả tháng</option>' + thangs.map(t=>`<option value="${t}">${t}</option>`).join('');
   bSel.innerHTML = '<option value="">Tất cả brand</option>' + brands.map(b=>`<option value="${b}">${b}</option>`).join('');
   tSel.value = tVal; bSel.value = bVal;
+
+  // Populate creator dropdown (từ createdByName trong data)
+  const cSel = document.getElementById('filterCreator');
+  const cVal = cSel.value;
+  const creators = [...new Set(allData.map(r => r.createdByName).filter(Boolean))].sort();
+  cSel.innerHTML = '<option value="">Tất cả người tạo</option>' + creators.map(c => `<option value="${c}">${c}</option>`).join('');
+  cSel.value = cVal;
 }
 
 function updateSummary(data) {
