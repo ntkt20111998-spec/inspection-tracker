@@ -804,7 +804,14 @@ function closeModalOutside(e) {
 }
 
 async function submitForm() {
-  if (currentRole !== 'admin') return;
+  if (currentRole !== 'admin' && currentRole !== 'editor') return;
+  // Editor chỉ được sửa PO do mình tạo
+  if (editingId && currentRole === 'editor') {
+    const rec = allData.find(x => x.id === editingId);
+    if (rec && rec.createdBy !== currentUser?.uid) {
+      showToast('⚠️ Bạn chỉ được sửa PO do mình tạo', 3000); return;
+    }
+  }
   const data = {
     thang: document.getElementById('f_thang').value.trim(),
     soPO: document.getElementById('f_soPO').value.trim(),
