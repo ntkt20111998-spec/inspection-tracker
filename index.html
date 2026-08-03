@@ -233,8 +233,8 @@ tr.row-done:hover td{background:#c6f6d5}
       <option value="Passed">Passed</option>
       <option value="Failed">Failed</option>
     </select>
-    <input type="date" id="filterNgayTu" onchange="applyFilters()" title="Ngày Final TT từ ngày" autocomplete="off" value="">
-    <input type="date" id="filterNgayDen" onchange="applyFilters()" title="Ngày Final TT đến ngày" autocomplete="off" value="">
+    <input type="date" id="filterNgayTu" onchange="applyFilters()" title="Ngày Final thực tế từ ngày" autocomplete="off" value="">
+    <input type="date" id="filterNgayDen" onchange="applyFilters()" title="Ngày Final thực tế đến ngày" autocomplete="off" value="">
     <button class="btn" onclick="clearDateFilter()" title="Xóa filter ngày" style="background:#e2e8f0;color:#4a5568;padding:6px 10px">✕</button>
     <select id="filterCreator" onchange="applyFilters()"><option value="">Tất cả người tạo</option></select>
     <button class="btn btn-add write-access" onclick="showAddModal()" style="display:none">+ Thêm PO</button>
@@ -266,8 +266,8 @@ tr.row-done:hover td{background:#c6f6d5}
           <th class="sortable" onclick="sortTable('lclFcl')">LCL/FCL <span class="sort-icon" id="si-lclFcl">⇅</span></th>
           <th class="sortable" onclick="sortTable('ngayRaHang')">Ship Window Start Date <span class="sort-icon" id="si-ngayRaHang">⇅</span></th>
           <th class="sortable" onclick="sortTable('ngayInline')">Ngày Inline <span class="sort-icon" id="si-ngayInline">⇅</span></th>
-          <th class="sortable" onclick="sortTable('ngayFinalSX')">Final (SX) <span class="sort-icon" id="si-ngayFinalSX">⇅</span></th>
-          <th class="sortable" onclick="sortTable('ngayFinalThucTe')">Final TT <span class="sort-icon" id="si-ngayFinalThucTe">⇅</span></th>
+          <th class="sortable" onclick="sortTable('ngayFinalSX')">Ngày Final (SX) <span class="sort-icon" id="si-ngayFinalSX">⇅</span></th>
+          <th class="sortable" onclick="sortTable('ngayFinalThucTe')">Ngày Final thực tế <span class="sort-icon" id="si-ngayFinalThucTe">⇅</span></th>
           <th class="sortable" onclick="sortTable('xuong')">Xưởng kiểm <span class="sort-icon" id="si-xuong">⇅</span></th>
           <th class="sortable" onclick="sortTable('wsi')">Đơn vị kiểm hàng <span class="sort-icon" id="si-wsi">⇅</span></th>
           <th class="sortable" onclick="sortTable('daKiem')">Đã Kiểm <span class="sort-icon" id="si-daKiem">⇅</span></th>
