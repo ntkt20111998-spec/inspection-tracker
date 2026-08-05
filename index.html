@@ -263,7 +263,6 @@ tr.row-done:hover td{background:#c6f6d5}
     <table>
       <thead>
         <tr>
-          <th class="sortable" onclick="sortTable('thang')">Tháng <span class="sort-icon" id="si-thang">⇅</span></th>
           <th class="sortable" onclick="sortTable('soPO')">Số PO <span class="sort-icon" id="si-soPO">⇅</span></th>
           <th class="sortable" onclick="sortTable('brand')">Brand <span class="sort-icon" id="si-brand">⇅</span></th>
           <th class="sortable" onclick="sortTable('soHD')">Số HĐ <span class="sort-icon" id="si-soHD">⇅</span></th>
@@ -298,10 +297,6 @@ tr.row-done:hover td{background:#c6f6d5}
     <div class="modal-body">
       <form id="poForm" onsubmit="return false">
         <div class="form-grid">
-          <div class="form-group">
-            <label>Tháng</label>
-            <input id="f_thang" placeholder="VD: 7/2026">
-          </div>
           <div class="form-group">
             <label>Số PO</label>
             <input id="f_soPO" placeholder="VD: 21405087WSR">
@@ -619,7 +614,6 @@ function renderTable(data) {
       ? `<td>${canEdit ? `<button class="btn-sm btn-edit" onclick="showEditModal('${r.id}')">Sửa</button> <button class="btn-sm btn-del" onclick="deleteRecord('${r.id}')">Xóa</button>` : ''}</td>`
       : '';
     return `<tr class="${rowClass}">
-      <td>${r.thang||''}</td>
       <td><b>${r.soPO||''}</b></td>
       <td>${r.brand||''}</td>
       <td>${r.soHD||''}</td>
@@ -824,7 +818,7 @@ async function submitForm() {
     }
   }
   const data = {
-    thang: document.getElementById('f_thang').value.trim(),
+    thang: (document.getElementById('f_thang')?.value||'').trim(),
     soPO: document.getElementById('f_soPO').value.trim(),
     brand: document.getElementById('f_brand').value.trim(),
     soHD: document.getElementById('f_soHD').value.trim(),
