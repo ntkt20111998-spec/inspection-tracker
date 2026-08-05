@@ -666,10 +666,8 @@ function applyFilters() {
 
   let filtered = allData.filter(r => {
     if (search) {
-      const hay = [r.thang,r.soPO,r.brand,r.soHD,r.lclFcl,r.xuong,r.wsi,r.ghiChu].map(v=>String(v||'').toLowerCase()).join(' ');
       if (!hay.includes(search)) return false;
     }
-    if (thang && r.thang !== thang) return false;
     if (brand && r.brand !== brand) return false;
     if (ketQua && r.ketQua !== ketQua) return false;
     if (creator && (r.createdByName || '') !== creator) return false;
@@ -781,7 +779,6 @@ function showEditModal(id) {
   }
   editingId = id;
   document.getElementById('modalTitle').textContent = 'Sửa PO — ' + (r.soPO || id);
-  document.getElementById('f_thang').value = r.thang || '';
   document.getElementById('f_soPO').value = r.soPO || '';
   document.getElementById('f_brand').value = r.brand || '';
   document.getElementById('f_soHD').value = r.soHD || '';
